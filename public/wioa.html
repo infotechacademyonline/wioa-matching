@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WIOA Registration — Infotech Academy</title>
+<meta name="description" content="Register your WorkInTexas details to be matched with your nearest Workforce Solutions office.">
+</head>
+<body style="margin:0;">
+<!--
+WIOA office-matching registration form — /getpaid/wioa
+Same design system as the /getpaid guide page (navy/gold/violet, Inter Tight
++ Inter). Submits to your hosted Node API's /register endpoint.
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@700;800;900&display=swap" rel="stylesheet">
+
+<style>
+  #wioa-form-page {
+    --ink: #0a0f1f;
+    --ink-2: #121a35;
+    --paper: #faf9f6;
+    --text: #12151c;
+    --muted: #626b7a;
+    --gold: #eda93a;
+    --gold-deep: #a8660e;
+    --violet: #8a63f2;
+    --line: #e5e1d6;
+    --error: #b91c1c;
+    --success: #1a7a3d;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: var(--text);
+    background: var(--paper);
+    -webkit-font-smoothing: antialiased;
+    padding: 56px 20px 80px;
+  }
+  #wioa-form-page * { box-sizing: border-box; }
+  #wioa-form-page h1 { font-family: 'Inter Tight', sans-serif; letter-spacing: -0.02em; }
+  #wioa-form-page .card {
+    max-width: 620px; margin: 0 auto; background: #fff; border: 1px solid var(--line);
+    border-radius: 18px; padding: 44px 44px 40px; box-shadow: 0 20px 50px rgba(10,15,31,0.06);
+  }
+  #wioa-form-page .field { display: block; margin-bottom: 18px; }
+  #wioa-form-page .field-label {
+    display: block; font-weight: 600; font-size: 13.5px; margin-bottom: 7px; color: var(--text);
+  }
+  #wioa-form-page input, #wioa-form-page select {
+    width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 9px;
+    font-size: 15px; font-family: inherit; color: var(--text); background: #fff;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  #wioa-form-page input:focus, #wioa-form-page select:focus {
+    outline: none; border-color: var(--violet); box-shadow: 0 0 0 3px rgba(138,99,242,0.15);
+  }
+  #wioa-form-page .row { display: flex; gap: 14px; }
+  #wioa-form-page .row .field { flex: 1; }
+  #wioa-form-page .submit-btn {
+    width: 100%; padding: 15px; background: var(--ink); color: #fff; font-weight: 700; font-size: 16px;
+    border: none; border-radius: 10px; cursor: pointer; margin-top: 6px; transition: background .15s ease;
+  }
+  #wioa-form-page .submit-btn:hover { background: var(--ink-2); }
+  #wioa-form-page .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+</style>
+
+<div id="wioa-form-page">
+  <div class="card" id="wioa-form-panel">
+    <img src="https://www.infotechacademy.online/wioa/wp-content/themes/irsl-theme/assets/infotech-logo.png" alt="Infotech Academy" style="height:36px;margin-bottom:26px;">
+    <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--gold-deep);margin:0 0 10px;">Step 3</p>
+    <h1 style="font-size:25px;font-weight:800;margin-bottom:10px;">Find your nearest office</h1>
+    <p style="color:var(--muted);margin-bottom:30px;line-height:1.6;font-size:14.5px;">
+      Already registered on WorkInTexas? Fill this out and we'll match you to your nearest
+      Workforce Solutions office, plus set you up with a checklist to track your next steps.
+    </p>
+
+    <form id="wioa-form">
+      <div class="row">
+        <label class="field">
+          <span class="field-label">First Name</span>
+          <input type="text" name="first_name" required>
+        </label>
+        <label class="field">
+          <span class="field-label">Last Name</span>
+          <input type="text" name="last_name" required>
+        </label>
+      </div>
+
+      <div class="row">
+        <label class="field">
+          <span class="field-label">Email Address</span>
+          <input type="email" name="email" required>
+        </label>
+        <label class="field">
+          <span class="field-label">Phone Number</span>
+          <input type="tel" name="phone" required placeholder="(555) 555-5555">
+        </label>
+      </div>
+
+      <label class="field">
+        <span class="field-label">WorkInTexas ID</span>
+        <input type="text" name="workintexas_id" required>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Street Address</span>
+        <input type="text" name="address" required placeholder="123 Main St">
+      </label>
+
+      <div class="row">
+        <label class="field" style="flex:2;">
+          <span class="field-label">City</span>
+          <input type="text" name="city" required>
+        </label>
+        <label class="field">
+          <span class="field-label">State</span>
+          <input type="text" name="state" required value="TX" maxlength="2">
+        </label>
+        <label class="field">
+          <span class="field-label">ZIP</span>
+          <input type="text" name="zip" required>
+        </label>
+      </div>
+
+      <label class="field">
+        <span class="field-label">Select Learning Track</span>
+        <select name="pathway" id="pathway-select" required>
+          <option value="">- Select -</option>
+          <option>Cloud Computing</option>
+          <option>Software Development</option>
+          <option>Network Security</option>
+          <option>Artificial Intelligence</option>
+          <option>Cybersecurity</option>
+          <option>Data Analytics</option>
+          <option>Device Configuration & Management</option>
+          <option>Networking</option>
+          <option>Databases</option>
+          <option>Data Science</option>
+          <option value="SAP">SAP</option>
+        </select>
+      </label>
+
+      <label class="field" id="sap-course-label" style="display:none;">
+        <span class="field-label">Select Specific SAP Course</span>
+        <select name="sap_course">
+          <option value="">- Select -</option>
+          <option>SAP Cybersecurity and Audit</option>
+          <option>SAP Finance and Controlling</option>
+          <option>SAP GRC Access Control</option>
+          <option>SAP GRC Audit Management</option>
+          <option>SAP GRC Process Control</option>
+          <option>SAP GRC Risk Management</option>
+          <option>SAP HANA System Administration</option>
+          <option>SAP Material Management</option>
+          <option>SAP Sales and Distribution</option>
+        </select>
+      </label>
+
+      <div class="row">
+        <label class="field">
+          <span class="field-label">Gender</span>
+          <select name="gender" required>
+            <option value="">- Select -</option>
+            <option>Male</option>
+            <option>Female</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Veteran Status</span>
+          <select name="veteran_status" required>
+            <option value="">- Select -</option>
+            <option>Yes, I am a veteran</option>
+            <option>No, I am not a veteran</option>
+            <option>Prefer not to say</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="field" style="margin-bottom:26px;">
+        <span class="field-label">Ethnicity / Race</span>
+        <select name="ethnicity" required>
+          <option value="">- Select -</option>
+          <option>African American / Black</option>
+          <option>Asian / Pacific Islander</option>
+          <option>Hispanic / Latino</option>
+          <option>Native American / Alaskan Native</option>
+          <option>White / Caucasian</option>
+          <option>Multiracial</option>
+          <option>Other</option>
+          <option>Prefer Not to Say</option>
+        </select>
+      </label>
+
+      <button type="submit" id="wioa-submit-btn" class="submit-btn">Submit Registration</button>
+      <p id="wioa-error" style="display:none;color:var(--error);margin-top:14px;font-size:13.5px;"></p>
+    </form>
+  </div>
+
+  <!-- Success panel -->
+  <div class="card" id="wioa-success-panel" style="display:none;text-align:center;">
+    <div style="width:60px;height:60px;background:#eafaf0;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;color:var(--success);">&#10003;</div>
+    <h2 style="font-size:22px;font-weight:800;margin-bottom:12px;font-family:'Inter Tight';">Registration Received</h2>
+    <p id="wioa-success-message" style="color:var(--muted);line-height:1.6;margin-bottom:20px;font-size:14.5px;"></p>
+    <div id="wioa-office-box" style="display:none;background:#f4fbf6;border:1px solid #cdeeda;border-radius:12px;padding:18px 20px;text-align:left;margin-bottom:20px;">
+      <p style="font-weight:700;color:var(--success);margin:0 0 8px;font-size:14px;">Your assigned office:</p>
+      <p id="wioa-office-details" style="color:#1a4a30;margin:0;line-height:1.6;font-size:14px;"></p>
+    </div>
+    <p style="color:var(--muted);font-size:13px;">Check your email for a link to track your enrollment checklist.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  // Point this at your real, permanently-hosted API before going live.
+  const API_URL = '/register';
+
+  const form = document.getElementById('wioa-form');
+  const submitBtn = document.getElementById('wioa-submit-btn');
+  const errorEl = document.getElementById('wioa-error');
+  const formPanel = document.getElementById('wioa-form-panel');
+  const successPanel = document.getElementById('wioa-success-panel');
+  const successMessage = document.getElementById('wioa-success-message');
+  const officeBox = document.getElementById('wioa-office-box');
+  const officeDetails = document.getElementById('wioa-office-details');
+
+  const pathwaySelect = document.getElementById('pathway-select');
+  const sapLabel = document.getElementById('sap-course-label');
+  pathwaySelect.addEventListener('change', () => {
+    sapLabel.style.display = pathwaySelect.value === 'SAP' ? 'block' : 'none';
+  });
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    errorEl.style.display = 'none';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+
+    const payload = Object.fromEntries(new FormData(form).entries());
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || 'Something went wrong. Please try again.');
+      }
+
+      formPanel.style.display = 'none';
+      successPanel.style.display = 'block';
+
+      if (data.matched && data.office) {
+        successMessage.textContent = 'Thanks — we\'ve matched you to your nearest office and emailed you the details.';
+        officeBox.style.display = 'block';
+        officeDetails.textContent = `${data.office.name} — ${data.office.address}` +
+          (data.office.phone ? ` — ${data.office.phone}` : '');
+      } else {
+        successMessage.textContent = data.message || 'Thanks — your registration was received.';
+      }
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit Registration';
+    }
+  });
+})();
+</script>
+</body>
+</html>
