@@ -212,7 +212,7 @@ Same design system as the /getpaid guide page (navy/gold/violet, Inter Tight
 <script>
 (function () {
   // Point this at your real, permanently-hosted API before going live.
-  const API_URL = '/register';
+  const API_URL = '/api/register';
 
   const form = document.getElementById('wioa-form');
   const submitBtn = document.getElementById('wioa-submit-btn');
@@ -255,8 +255,13 @@ Same design system as the /getpaid guide page (navy/gold/violet, Inter Tight
       if (data.matched && data.office) {
         successMessage.textContent = 'Thanks — we\'ve matched you to your nearest office and emailed you the details.';
         officeBox.style.display = 'block';
-        officeDetails.textContent = `${data.office.name} — ${data.office.address}` +
-          (data.office.phone ? ` — ${data.office.phone}` : '');
+        officeDetails.innerHTML = `
+          <strong>${data.office.name}</strong><br>
+          ${data.office.county ? data.office.county + '<br>' : ''}
+          ${data.office.address}<br>
+          ${data.office.phone ? 'Phone: ' + data.office.phone + '<br>' : ''}
+          ${data.office.email ? 'Email: ' + data.office.email : ''}
+        `;
       } else {
         successMessage.textContent = data.message || 'Thanks — your registration was received.';
       }

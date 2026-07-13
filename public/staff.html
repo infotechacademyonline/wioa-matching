@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staff Dashboard — Infotech Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@700;800;900&display=swap" rel="stylesheet">
+
+<style>
+  body {
+    --ink: #0a0f1f;
+    --paper: #faf9f6;
+    --text: #12151c;
+    --muted: #626b7a;
+    --gold: #eda93a;
+    --gold-deep: #a8660e;
+    --violet: #8a63f2;
+    --success: #1a7a3d;
+    --line: #e5e1d6;
+    margin: 0; padding: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: var(--text); background: var(--paper); -webkit-font-smoothing: antialiased;
+  }
+  * { box-sizing: border-box; }
+  h1, h2, h3 { font-family: 'Inter Tight', sans-serif; letter-spacing: -0.02em; margin: 0; }
+
+  /* Login gate */
+  #login-screen { max-width: 380px; margin: 100px auto; padding: 0 20px; text-align: center; }
+  #login-screen input {
+    width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 9px;
+    font-size: 15px; margin: 20px 0 12px; font-family: inherit;
+  }
+  #login-screen button, .btn-primary {
+    background: var(--ink); color: #fff; font-weight: 700; font-size: 15px; padding: 12px 24px;
+    border: none; border-radius: 9px; cursor: pointer;
+  }
+
+  /* Dashboard */
+  #dashboard { display: none; max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+  .stat-row { display: flex; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+  .stat-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px; flex: 1; min-width: 140px; }
+  .stat-value { font-family: 'Inter Tight'; font-weight: 800; font-size: 26px; }
+  .stat-label { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+
+  table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  th, td { text-align: left; padding: 12px 16px; font-size: 13.5px; border-bottom: 1px solid var(--line); }
+  th { background: #f2efe8; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  tr.clickable { cursor: pointer; }
+  tr.clickable:hover { background: #faf7f0; }
+  .progress-track { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; width: 90px; }
+  .progress-fill { height: 100%; background: var(--gold); }
+  input#search { padding: 10px 14px; border: 1px solid var(--line); border-radius: 9px; font-size: 14px; width: 260px; font-family: inherit; }
+
+  /* Detail modal */
+  #modal-overlay { display: none; position: fixed; inset: 0; background: rgba(10,15,31,0.5); z-index: 10; align-items: center; justify-content: center; }
+  #modal { background: #fff; border-radius: 16px; max-width: 520px; width: 90%; max-height: 85vh; overflow-y: auto; padding: 32px 36px; }
+  #modal .step-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  #modal .step-row:last-child { border-bottom: none; }
+  .toggle-btn { padding: 6px 14px; border-radius: 7px; font-size: 12.5px; font-weight: 700; cursor: pointer; border: 1px solid var(--line); background: #fff; }
+  .toggle-btn.complete { background: #eafaf0; border-color: var(--success); color: var(--success); }
+  #close-modal { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <h1 style="font-size:22px;">Staff Dashboard</h1>
+  <p style="color:var(--muted); font-size:14px; margin-top:8px;">Enter the staff password to continue.</p>
+  <input type="password" id="password-input" placeholder="Password">
+  <br>
+  <button onclick="unlock()">Unlock</button>
+  <p id="login-error" style="color:#b91c1c; font-size:13px; display:none; margin-top:10px;">Incorrect password.</p>
+</div>
+
+<div id="dashboard">
+  <div class="topbar">
+    <h1 style="font-size:22px;">Participants</h1>
+    <input type="text" id="search" placeholder="Search by name or email…">
+  </div>
+  <div class="stat-row" id="stat-row"></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>WorkInTexas ID</th>
+        <th>Office</th>
+        <th>County</th>
+        <th>Distance</th>
+        <th>Pathway</th>
+        <th>Progress</th>
+        <th>Registered</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
+<div id="modal-overlay">
+  <div id="modal"></div>
+</div>
+
+<script>
+let STAFF_PASSWORD = '';
+let ALL_ROWS = [];
+
+function unlock() {
+  const input = document.getElementById('password-input');
+  STAFF_PASSWORD = input.value;
+  loadParticipants();
+}
+
+async function loadParticipants() {
+  const res = await fetch('/api/staff/participants', {
+    headers: { 'x-staff-password': STAFF_PASSWORD },
+  });
+  if (res.status === 401) {
+    document.getElementById('login-error').style.display = 'block';
+    return;
+  }
+  ALL_ROWS = await res.json();
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  renderStats();
+  renderTable(ALL_ROWS);
+}
+
+function renderStats() {
+  const total = ALL_ROWS.length;
+  const matched = ALL_ROWS.filter(r => r.office_name).length;
+  const fullyComplete = ALL_ROWS.filter(r => Number(r.steps_total) > 0 && r.steps_complete === r.steps_total).length;
+  const avgProgress = total ? Math.round(
+    ALL_ROWS.reduce((sum, r) => sum + (r.steps_total > 0 ? r.steps_complete / r.steps_total : 0), 0) / total * 100
+  ) : 0;
+
+  document.getElementById('stat-row').innerHTML = `
+    <div class="stat-card"><div class="stat-value">${total}</div><div class="stat-label">Total registrations</div></div>
+    <div class="stat-card"><div class="stat-value">${matched}</div><div class="stat-label">Matched to an office</div></div>
+    <div class="stat-card"><div class="stat-value">${fullyComplete}</div><div class="stat-label">Fully complete</div></div>
+    <div class="stat-card"><div class="stat-value">${avgProgress}%</div><div class="stat-label">Average progress</div></div>
+  `;
+}
+
+function renderTable(rows) {
+  const body = document.getElementById('table-body');
+  body.innerHTML = '';
+  rows.forEach((r) => {
+    const pct = r.steps_total > 0 ? Math.round((r.steps_complete / r.steps_total) * 100) : 0;
+    const tr = document.createElement('tr');
+    tr.className = 'clickable';
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(r.full_name)}</strong><br><span style="color:var(--muted);font-size:12px;">${escapeHtml(r.email)}</span></td>
+      <td>${escapeHtml(r.workintexas_id || '—')}</td>
+      <td>${escapeHtml(r.office_name || '—')}</td>
+      <td>${escapeHtml(r.office_county || '—')}</td>
+      <td>${r.distance_miles ? r.distance_miles + ' mi' : '—'}</td>
+      <td>${escapeHtml(r.pathway || '—')}</td>
+      <td>
+        <div class="progress-track"><div class="progress-fill" style="width:${pct}%;"></div></div>
+        <span style="font-size:11.5px; color:var(--muted);">${r.steps_complete}/${r.steps_total}</span>
+      </td>
+      <td style="color:var(--muted);">${new Date(r.created_at).toLocaleDateString()}</td>
+    `;
+    tr.addEventListener('click', () => openDetail(r.id));
+    body.appendChild(tr);
+  });
+}
+
+document.getElementById('search').addEventListener('input', (e) => {
+  const q = e.target.value.toLowerCase();
+  renderTable(ALL_ROWS.filter(r =>
+    r.full_name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q)
+  ));
+});
+
+async function openDetail(id) {
+  const res = await fetch(`/api/staff/participants/${id}`, {
+    headers: { 'x-staff-password': STAFF_PASSWORD },
+  });
+  const data = await res.json();
+  const p = data.participant;
+
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <button id="close-modal" onclick="closeModal()">&times;</button>
+    <h2 style="font-size:19px; margin-bottom:4px;">${escapeHtml(p.full_name)}</h2>
+    <p style="color:var(--muted); font-size:13.5px; margin:0 0 18px;">${escapeHtml(p.email)} &middot; ${escapeHtml(p.phone || 'no phone')}</p>
+    ${p.office_name ? `
+      <div style="background:#f4fbf6; border:1px solid #cdeeda; border-radius:10px; padding:14px 16px; margin-bottom:20px;">
+        <p style="font-weight:700; margin:0 0 2px; font-size:14px;">${escapeHtml(p.office_name)}</p>
+        <p style="color:var(--muted); font-size:12.5px; margin:0;">${escapeHtml(p.office_address || '')} &middot; ${p.distance_miles} mi</p>
+      </div>
+    ` : '<p style="color:var(--muted); font-size:13.5px;">Not yet matched to an office.</p>'}
+    <div id="modal-steps"></div>
+  `;
+
+  const stepsEl = document.getElementById('modal-steps');
+  data.checklist.forEach((step) => {
+    const done = step.status === 'complete';
+    const row = document.createElement('div');
+    row.className = 'step-row';
+    row.innerHTML = `
+      <span style="font-size:14px; ${done ? 'color:var(--muted); text-decoration:line-through;' : ''}">${escapeHtml(step.step_label)}</span>
+      <button class="toggle-btn ${done ? 'complete' : ''}">${done ? '✓ Complete' : 'Mark complete'}</button>
+    `;
+    row.querySelector('.toggle-btn').addEventListener('click', async () => {
+      const action = done ? 'reset' : 'complete';
+      await fetch(`/api/staff/participants/${id}/${step.step_key}/${action}`, {
+        method: 'POST',
+        headers: { 'x-staff-password': STAFF_PASSWORD },
+      });
+      openDetail(id);
+      loadParticipants();
+    });
+    stepsEl.appendChild(row);
+  });
+
+  document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').style.display = 'none';
+}
+document.getElementById('modal-overlay').addEventListener('click', (e) => {
+  if (e.target.id === 'modal-overlay') closeModal();
+});
+
+function escapeHtml(str) {
+  return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+document.getElementById('password-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') unlock();
+});
+</script>
+</body>
+</html>

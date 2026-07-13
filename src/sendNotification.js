@@ -5,6 +5,7 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 const nodemailer = require('nodemailer');
+const { buildAssignmentEmailHtml, buildAssignmentEmailText } = require('./emailTemplate');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
@@ -13,30 +14,6 @@ const transporter = nodemailer.createTransport({
   port: Number(process.env.SMTP_PORT),
   auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
 });
-
-function buildEmail(participant, office) {
-  const link = `${process.env.APP_BASE_URL}/checklist/${participant.portal_token}`;
-
-  return {
-    from: process.env.SMTP_FROM,
-    to: participant.email,
-    subject: 'Your WIOA program office assignment',
-    text: `Hi ${participant.full_name},
-
-Your assigned WIOA office is:
-
-${office.name}
-${office.county ? office.county + '\n' : ''}${office.address}
-${office.phone ? 'Phone: ' + office.phone : ''}
-${office.email ? 'Email: ' + office.email : ''}
-
-Track your enrollment steps here: ${link}
-
-This link is unique to you — no login required. Check items off as you
-complete them and we'll see it update on our end automatically.
-`,
-  };
-}
 
 async function main() {
   const { rows } = await pool.query(`
@@ -54,12 +31,24 @@ async function main() {
   console.log(`Sending ${rows.length} notification emails...`);
 
   for (const r of rows) {
-    const email = buildEmail(
-      { full_name: r.full_name, email: r.email, portal_token: r.portal_token },
-      { name: r.office_name, county: r.office_county, address: r.office_address, phone: r.office_phone, email: r.office_email }
-    );
+    const checklistLink = `${process.env.APP_BASE_URL}/checklist/${r.portal_token}`;
+    const office = {
+      name: r.office_name,
+      county: r.office_county,
+      address: r.office_address,
+      phone: r.office_phone,
+      email: r.office_email,
+    };
+    const payload = { fullName: r.full_name, office, checklistLink };
 
-    await transporter.sendMail(email);
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to: r.email,
+      subject: 'Your WIOA program office assignment',
+      text: buildAssignmentEmailText(payload),
+      html: buildAssignmentEmailHtml(payload),
+    });
+
     await pool.query(`UPDATE assignments SET notified_at = now() WHERE id = $1`, [r.assignment_id]);
     console.log(`  ✓ Sent to ${r.email}`);
   }

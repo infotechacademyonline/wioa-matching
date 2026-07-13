@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Checklist — Infotech Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@700;800;900&display=swap" rel="stylesheet">
+
+<style>
+  body {
+    --ink: #0a0f1f;
+    --paper: #faf9f6;
+    --text: #12151c;
+    --muted: #626b7a;
+    --gold: #eda93a;
+    --gold-deep: #a8660e;
+    --violet: #8a63f2;
+    --success: #1a7a3d;
+    --line: #e5e1d6;
+    margin: 0; padding: 56px 20px 80px;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: var(--text); background: var(--paper); -webkit-font-smoothing: antialiased;
+  }
+  * { box-sizing: border-box; }
+  h1, h2 { font-family: 'Inter Tight', sans-serif; letter-spacing: -0.02em; margin: 0; }
+  .card { max-width: 640px; margin: 0 auto 20px; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 32px 36px; box-shadow: 0 20px 50px rgba(10,15,31,0.05); }
+  .office-card { background: #f4fbf6; border: 1px solid #cdeeda; border-radius: 12px; padding: 18px 20px; margin-top: 18px; }
+  .progress-track { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; margin: 14px 0 6px; }
+  .progress-fill { height: 100%; background: var(--gold); border-radius: 999px; transition: width .3s ease; }
+  .step-row { display: flex; align-items: flex-start; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .step-row:last-child { border-bottom: none; }
+  .check-btn {
+    width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); background: #fff;
+    cursor: pointer; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 14px; font-weight: bold; transition: all .15s ease;
+  }
+  .check-btn.done { background: var(--success); border-color: var(--success); }
+  .check-btn:disabled { cursor: default; }
+  .step-label { font-weight: 600; font-size: 15px; }
+  .step-label.done { color: var(--muted); text-decoration: line-through; }
+  .step-meta { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  #loading, #error { text-align: center; color: var(--muted); padding: 60px 20px; max-width: 500px; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<div id="loading">Loading your checklist…</div>
+<div id="error" style="display:none;"></div>
+<div id="content" style="display:none;"></div>
+
+<script>
+(function () {
+  const token = window.location.pathname.split('/').filter(Boolean).pop();
+
+  async function load() {
+    try {
+      const res = await fetch(`/api/checklist/${token}`);
+      if (!res.ok) throw new Error('We couldn\'t find that checklist link.');
+      const data = await res.json();
+      render(data);
+    } catch (err) {
+      document.getElementById('loading').style.display = 'none';
+      const errEl = document.getElementById('error');
+      errEl.style.display = 'block';
+      errEl.textContent = err.message;
+    }
+  }
+
+  function render(data) {
+    document.getElementById('loading').style.display = 'none';
+    const content = document.getElementById('content');
+    content.style.display = 'block';
+
+    const total = data.checklist.length;
+    const complete = data.checklist.filter(c => c.status === 'complete').length;
+    const pct = total ? Math.round((complete / total) * 100) : 0;
+
+    const officeHtml = data.office ? `
+      <div class="office-card">
+        <p style="font-weight:700; color:var(--success); margin:0 0 6px; font-size:13.5px;">Your assigned office</p>
+        <p style="font-weight:700; margin:0 0 2px; font-size:15px;">${escapeHtml(data.office.name)}</p>
+        ${data.office.county ? `<p style="color:var(--gold-deep); font-weight:600; font-size:13px; margin:0 0 8px;">${escapeHtml(data.office.county)}</p>` : ''}
+        <p style="color:var(--muted); font-size:13.5px; margin:0 0 4px; line-height:1.5;">${escapeHtml(data.office.address || '')}</p>
+        ${data.office.phone ? `<p style="color:var(--muted); font-size:13.5px; margin:0;">Phone: ${escapeHtml(data.office.phone)}</p>` : ''}
+        ${data.office.email ? `<p style="color:var(--muted); font-size:13.5px; margin:0;">Email: ${escapeHtml(data.office.email)}</p>` : ''}
+      </div>
+    ` : '';
+
+    content.innerHTML = `
+      <div class="card">
+        <p style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold-deep); margin:0 0 8px;">Your checklist</p>
+        <h1 style="font-size:24px;">Hi ${escapeHtml(data.participant.name)}</h1>
+        <div class="progress-track"><div class="progress-fill" style="width:${pct}%;"></div></div>
+        <p style="color:var(--muted); font-size:13.5px; margin:0;">${complete} of ${total} steps complete</p>
+        ${officeHtml}
+      </div>
+      <div class="card" id="steps-card"></div>
+    `;
+
+    const stepsCard = document.getElementById('steps-card');
+    data.checklist.forEach((step) => {
+      const row = document.createElement('div');
+      row.className = 'step-row';
+      const done = step.status === 'complete';
+      row.innerHTML = `
+        <button class="check-btn ${done ? 'done' : ''}" ${done ? 'disabled' : ''} data-step="${step.step_key}">
+          ${done ? '&#10003;' : ''}
+        </button>
+        <div>
+          <p class="step-label ${done ? 'done' : ''}" style="margin:0;">${escapeHtml(step.step_label)}</p>
+          ${done && step.completed_at ? `<p class="step-meta">Completed ${new Date(step.completed_at).toLocaleDateString()}</p>` : ''}
+        </div>
+      `;
+      stepsCard.appendChild(row);
+
+      if (!done) {
+        row.querySelector('.check-btn').addEventListener('click', async (e) => {
+          const btn = e.currentTarget;
+          btn.disabled = true;
+          btn.textContent = '…';
+          try {
+            const res = await fetch(`/api/checklist/${token}/${step.step_key}/complete`, { method: 'POST' });
+            if (!res.ok) throw new Error();
+            load(); // re-fetch to show updated state everywhere (progress bar, etc.)
+          } catch {
+            btn.disabled = false;
+            btn.textContent = '';
+          }
+        });
+      }
+    });
+  }
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>
