@@ -26,9 +26,9 @@ function buildEmail(participant, office) {
 Your assigned WIOA office is:
 
 ${office.name}
-${office.address}
+${office.county ? office.county + '\n' : ''}${office.address}
 ${office.phone ? 'Phone: ' + office.phone : ''}
-${office.hours ? 'Hours: ' + office.hours : ''}
+${office.email ? 'Email: ' + office.email : ''}
 
 Track your enrollment steps here: ${link}
 
@@ -42,8 +42,8 @@ async function main() {
   const { rows } = await pool.query(`
     SELECT
       p.id, p.full_name, p.email, p.portal_token,
-      o.name AS office_name, o.address AS office_address,
-      o.phone AS office_phone, o.hours AS office_hours,
+      o.name AS office_name, o.county AS office_county, o.address AS office_address,
+      o.phone AS office_phone, o.email AS office_email,
       a.id AS assignment_id
     FROM assignments a
     JOIN participants p ON p.id = a.participant_id
@@ -56,7 +56,7 @@ async function main() {
   for (const r of rows) {
     const email = buildEmail(
       { full_name: r.full_name, email: r.email, portal_token: r.portal_token },
-      { name: r.office_name, address: r.office_address, phone: r.office_phone, hours: r.office_hours }
+      { name: r.office_name, county: r.office_county, address: r.office_address, phone: r.office_phone, email: r.office_email }
     );
 
     await transporter.sendMail(email);
