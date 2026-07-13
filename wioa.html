@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Infotech Academy — Get Paid While You Learn</title>
+<meta name="description" content="Start a tech career with government-funded WIOA training. No cost to you if eligible.">
+</head>
+<body style="margin:0;">
+<!--
+GetPaid / WIOA landing page — /getpaid
+Design system: deep navy ground, single gold accent for action, violet for
+Academy identity, Inter Tight for display type, Inter for body. Signature
+element: a credential/ID-card motif in the hero, echoed in the track badges
+— because the entire journey here literally runs through a WorkInTexas ID
+card and ends in a certification.
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@700;800;900&display=swap" rel="stylesheet">
+
+<style>
+  #wioa-getpaid {
+    --ink: #0a0f1f;
+    --ink-2: #121a35;
+    --ink-3: #1a2447;
+    --paper: #faf9f6;
+    --paper-2: #f2efe8;
+    --text: #12151c;
+    --muted: #626b7a;
+    --muted-on-ink: #9aa4bd;
+    --gold: #eda93a;
+    --gold-deep: #a8660e;
+    --violet: #8a63f2;
+    --line-ink: rgba(255,255,255,0.1);
+    --line-paper: #e5e1d6;
+    --radius: 16px;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: var(--text);
+    background: var(--paper);
+    -webkit-font-smoothing: antialiased;
+  }
+  #wioa-getpaid * { box-sizing: border-box; }
+  #wioa-getpaid h1, #wioa-getpaid h2, #wioa-getpaid h3 {
+    font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  #wioa-getpaid .eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  #wioa-getpaid .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
+  #wioa-getpaid .btn-gold {
+    display: inline-flex; align-items: center; gap: 8px; background: var(--gold); color: #1b1200;
+    font-weight: 700; font-size: 15.5px; padding: 14px 28px; border-radius: 10px; text-decoration: none;
+    border: none; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease;
+  }
+  #wioa-getpaid .btn-gold:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(237,169,58,0.35); }
+  #wioa-getpaid .badge-chip {
+    display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line-paper);
+    border-radius: 999px; padding: 10px 16px; font-weight: 600; font-size: 14px;
+  }
+  #wioa-getpaid .badge-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--violet); flex-shrink: 0; }
+  #wioa-getpaid section { padding: 88px 0; }
+  @media (max-width: 720px) { #wioa-getpaid section { padding: 56px 0; } }
+</style>
+
+<div id="wioa-getpaid">
+
+  <!-- TOP BAR -->
+  <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;padding-top:26px;padding-bottom:26px;">
+    <img src="https://www.infotechacademy.online/wioa/wp-content/themes/irsl-theme/assets/infotech-logo.png" alt="Infotech Academy" style="height:34px;">
+    <a href="tel:+18328860377" style="color:var(--text);font-weight:600;font-size:14.5px;text-decoration:none;">+1 (832) 886-0377</a>
+  </div>
+
+  <!-- HERO -->
+  <section style="background:radial-gradient(120% 140% at 15% -10%, #1a2447 0%, var(--ink) 55%);padding-top:64px;padding-bottom:96px;position:relative;overflow:hidden;">
+    <div class="wrap" style="display:grid;grid-template-columns:1.15fr 0.85fr;gap:56px;align-items:center;position:relative;">
+
+      <div>
+        <p class="eyebrow" style="color:var(--gold);margin-bottom:18px;">Infotech Academy Online &middot; WofkForce Solutions</p>
+        <h1 style="font-size:52px;font-weight:800;line-height:1.06;color:#fff;max-width:520px;">
+          Start a tech career.<br>Get paid <span style="color:var(--gold);">while you learn.</span>
+        </h1>
+        <p style="max-width:460px;margin:22px 0 32px;color:var(--muted-on-ink);font-size:17px;line-height:1.65;">
+          Infotech Academy pairs federally funded training with real career support &mdash; no tuition, no debt, no guesswork.
+        </p>
+        <a href="#steps" class="btn-gold">Start my application &rarr;</a>
+
+        <div style="display:flex;gap:28px;margin-top:44px;">
+          <div>
+            <p style="font-family:'Inter Tight';font-weight:800;font-size:26px;color:#fff;margin:0;">$0</p>
+            <p style="color:var(--muted-on-ink);font-size:13px;margin:2px 0 0;">Cost to you, if eligible</p>
+          </div>
+          <div style="width:1px;background:var(--line-ink);"></div>
+          <div>
+            <p style="font-family:'Inter Tight';font-weight:800;font-size:26px;color:#fff;margin:0;">$2,500</p>
+            <p style="color:var(--muted-on-ink);font-size:13px;margin:2px 0 0;">Possible cash incentives</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- CREDENTIAL CARD MOTIF -->
+      <div style="position:relative;height:340px;">
+        <div style="position:absolute;top:18px;right:8px;width:280px;transform:rotate(4deg);background:linear-gradient(135deg,var(--ink-3),var(--ink-2));border:1px solid var(--line-ink);border-radius:18px;padding:22px 22px 26px;box-shadow:0 30px 60px rgba(0,0,0,0.45);">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:26px;">
+            <p style="color:var(--muted-on-ink);font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;margin:0;">Workforce Credential</p>
+            <div style="width:26px;height:20px;border-radius:4px;background:linear-gradient(135deg,var(--gold),#c9820a);"></div>
+          </div>
+          <p style="color:#fff;font-weight:700;font-size:19px;margin:0 0 4px;">Your Name Here</p>
+          <p style="color:var(--gold);font-size:13px;font-weight:600;margin:0 0 22px;">Cybersecurity Track</p>
+          <div id="wioa-barcode" style="display:flex;gap:3px;height:22px;align-items:flex-end;"></div>
+        </div>
+        <div style="position:absolute;bottom:6px;left:0;width:230px;transform:rotate(-6deg);background:#fff;border-radius:18px;padding:20px;box-shadow:0 24px 50px rgba(0,0,0,0.35);">
+          <p style="color:var(--muted);font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 10px;">WorkInTexas ID</p>
+          <p style="font-family:'Inter Tight';font-weight:800;font-size:22px;margin:0;color:var(--text);">WT-084213</p>
+          <div style="margin-top:14px;height:1px;background:var(--line-paper);"></div>
+          <p style="margin:10px 0 0;font-size:12px;color:var(--muted);">Status: <span style="color:#1a7a3d;font-weight:700;">Matched to office</span></p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- WHY CHOOSE US -->
+  <section>
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--gold-deep);margin-bottom:10px;">Why Infotech Academy</p>
+      <h2 style="font-size:30px;font-weight:800;margin-bottom:40px;">Built for people who are ready, not people who wait.</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:32px;">
+        <div>
+          <div style="width:6px;height:6px;border-radius:50%;background:var(--violet);margin-bottom:14px;"></div>
+          <p style="font-weight:700;font-size:16.5px;margin:0 0 8px;">Expert-led, live training</p>
+          <p style="color:var(--muted);margin:0;font-size:14.5px;line-height:1.6;">Real instructors, real cohorts &mdash; not a self-paced video library.</p>
+        </div>
+        <div>
+          <div style="width:6px;height:6px;border-radius:50%;background:var(--violet);margin-bottom:14px;"></div>
+          <p style="font-weight:700;font-size:16.5px;margin:0 0 8px;">Certifications that count</p>
+          <p style="color:var(--muted);margin:0;font-size:14.5px;line-height:1.6;">Industry-recognized credentials in Cybersecurity, SAP, AI, and more &mdash; in as little as 3 months.</p>
+        </div>
+        <div>
+          <div style="width:6px;height:6px;border-radius:50%;background:var(--violet);margin-bottom:14px;"></div>
+          <p style="font-weight:700;font-size:16.5px;margin:0 0 8px;">Laptop & materials included</p>
+          <p style="color:var(--muted);margin:0;font-size:14.5px;line-height:1.6;">Everything you need to train shows up before day one.</p>
+        </div>
+        <div>
+          <div style="width:6px;height:6px;border-radius:50%;background:var(--violet);margin-bottom:14px;"></div>
+          <p style="font-weight:700;font-size:16.5px;margin:0 0 8px;">Paid to complete milestones</p>
+          <p style="color:var(--muted);margin:0;font-size:14.5px;line-height:1.6;">Up to $2,500 in incentives as you progress. Amount varies by county.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DESIGNED FOR -->
+  <section style="background:var(--ink);">
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--gold);margin-bottom:10px;">Who this is for</p>
+      <h2 style="font-size:28px;font-weight:800;color:#fff;margin-bottom:36px;">Wherever you're starting from, there's a track in.</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:2px;background:var(--line-ink);border-radius:14px;overflow:hidden;">
+        <div style="background:var(--ink);padding:26px 24px;">
+          <p style="color:#fff;font-weight:700;margin:0 0 6px;">High school students</p>
+          <p style="color:var(--muted-on-ink);margin:0;font-size:13.5px;">Kickstart your tech career early.</p>
+        </div>
+        <div style="background:var(--ink);padding:26px 24px;">
+          <p style="color:#fff;font-weight:700;margin:0 0 6px;">Recent graduates</p>
+          <p style="color:var(--muted-on-ink);margin:0;font-size:13.5px;">Gain skills. Get certified. Get hired.</p>
+        </div>
+        <div style="background:var(--ink);padding:26px 24px;">
+          <p style="color:#fff;font-weight:700;margin:0 0 6px;">Career changers</p>
+          <p style="color:var(--muted-on-ink);margin:0;font-size:13.5px;">Transition into high-growth tech roles.</p>
+        </div>
+        <div style="background:var(--ink);padding:26px 24px;">
+          <p style="color:#fff;font-weight:700;margin:0 0 6px;">Dislocated Workers</p>
+          <p style="color:var(--muted-on-ink);margin:0;font-size:13.5px;">Upskill and stay ahead in your field.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEARNING TRACKS -->
+  <section>
+    <div class="wrap">
+      <p class="eyebrow" style="color:var(--gold-deep);margin-bottom:10px;">Learning tracks</p>
+      <h2 style="font-size:28px;font-weight:800;margin-bottom:8px;">Ten pathways. One application.</h2>
+      <p style="color:var(--muted);margin-bottom:32px;max-width:520px;">Each badge below is an active track &mdash; you'll choose one when you register.</p>
+      <div id="wioa-tracks-grid" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;"></div>
+      <div style="border:1px solid var(--line-paper);border-left:3px solid var(--violet);border-radius:12px;padding:22px 24px;background:#fff;">
+        <p style="font-weight:700;margin:0 0 8px;color:var(--text);">SAP Specialized Courses</p>
+        <p style="color:var(--muted);margin:0;font-size:13.5px;line-height:1.7;">
+          Cybersecurity & Audit &middot; Finance & Controlling &middot; GRC Access Control &middot; GRC Audit Management &middot;
+          GRC Process Control &middot; GRC Risk Management &middot; HANA Admin &middot; Material Management &middot; Sales & Distribution
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6-STEP GUIDE -->
+  <section id="steps" style="background:var(--paper-2);">
+    <div class="wrap" style="max-width:700px;">
+      <p class="eyebrow" style="color:var(--gold-deep);margin-bottom:10px;text-align:center;">The process</p>
+      <h2 style="font-size:28px;font-weight:800;margin-bottom:12px;text-align:center;">Six steps. Let us know where you are.</h2>
+      <p style="color:var(--muted);text-align:center;margin-bottom:44px;">We'll point you to exactly what to do next at each one.</p>
+      <div id="wioa-steps" style="position:relative;padding-left:34px;"></div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <div style="background:var(--ink);padding:48px 28px;">
+    <div class="wrap" style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:24px;padding-top:28px;border-top:1px solid var(--line-ink);">
+      <div>
+        <p style="color:#fff;font-weight:800;font-size:16px;margin:0 0 6px;font-family:'Inter Tight';">Infotech Academy</p>
+        <p style="color:var(--muted-on-ink);font-size:13px;margin:0;">10814 South Kirkwood Road, Houston, TX 77099</p>
+      </div>
+      <div style="text-align:right;">
+        <p style="margin:0 0 4px;"><a href="mailto:learn@infotechacademy.online" style="color:var(--muted-on-ink);font-size:13.5px;text-decoration:none;">learn@infotechacademy.online</a></p>
+        <p style="margin:0;"><a href="tel:+18328860377" style="color:var(--muted-on-ink);font-size:13.5px;text-decoration:none;">+1 (832) 886-0377</a></p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const root = document.getElementById('wioa-getpaid');
+
+  // Barcode flourish on the credential card
+  const barcode = root.querySelector('#wioa-barcode');
+  for (let i = 0; i < 22; i++) {
+    const bar = document.createElement('div');
+    const h = 8 + Math.round(Math.random() * 14);
+    bar.style.cssText = `width:2px;height:${h}px;background:rgba(255,255,255,${0.25 + Math.random() * 0.35});`;
+    barcode.appendChild(bar);
+  }
+
+  // Track badges
+  const tracks = [
+    'Cloud Computing', 'Software Development', 'Network Security', 'Artificial Intelligence',
+    'Cybersecurity', 'Data Analytics', 'Device Config & Management', 'Networking', 'Databases', 'Data Science',
+  ];
+  const grid = root.querySelector('#wioa-tracks-grid');
+  tracks.forEach((t) => {
+    const el = document.createElement('div');
+    el.className = 'badge-chip';
+    el.innerHTML = `<span class="dot"></span>${t}`;
+    grid.appendChild(el);
+  });
+
+  // 6-step guide
+  const steps = [
+    { number: 1, title: 'Register on WorkInTexas',
+      description: 'Create an individual account on WorkInTexas.com to search job openings, post your résumé, and find training programs.',
+      question: 'Have you registered on WorkInTexas yet?', ctaText: 'Go to WorkInTexas.com', ctaLink: 'https://www.workintexas.com' },
+    { number: 2, title: 'Get your WorkInTexas ID',
+      description: 'Once registered, WorkInTexas gives you an ID number. You\u2019ll need this for the next step.', infoOnly: true },
+    { number: 3, title: 'Find your nearest Workforce Solutions office',
+      description: 'Fill out our short form with your details and WorkInTexas ID. We\u2019ll match you to the closest office and email you the details.',
+      question: 'Have you filled out our office-matching form yet?', ctaText: 'Go to the WIOA form', ctaLink: '/wioa' },
+    { number: 4, title: 'Visit your assigned Workforce Solutions office',
+      description: 'Bring your WorkInTexas ID number. Staff will confirm your eligibility and available opportunities.',
+      question: 'Have you visited your assigned office yet?', ctaText: 'Find my assigned office', ctaLink: '/wioa' },
+    { number: 5, title: 'Choose your training pathway',
+      description: 'Once confirmed eligible, come back and tell us your pathway \u2014 AI, Cybersecurity, SAP Security, Data Analytics, and more.',
+      question: 'Have you been confirmed eligible at your office visit?', ctaText: 'Complete my registration', ctaLink: '/wioa' },
+    { number: 6, title: 'Await your welcome into the class',
+      description: 'Keep an eye on your email \u2014 we\u2019ll send your welcome details soon. You\u2019ve got this!', infoOnly: true },
+  ];
+
+  const container = root.querySelector('#wioa-steps');
+  container.style.borderLeft = '2px solid var(--line-paper)';
+
+  steps.forEach((step, i) => {
+    const card = document.createElement('div');
+    card.style.cssText = 'position:relative;padding-bottom:36px;';
+    const isLast = i === steps.length - 1;
+    if (isLast) card.style.paddingBottom = '0';
+
+    const nodeColor = step.infoOnly ? '#c7c2b4' : 'var(--gold)';
+    card.innerHTML = `
+      <div style="position:absolute;left:-40px;top:2px;width:14px;height:14px;border-radius:50%;background:${step.infoOnly ? '#c7c2b4' : '#eda93a'};border:3px solid var(--paper-2);"></div>
+      <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;">Step ${step.number}</p>
+      <h3 style="font-size:18px;font-weight:700;margin:0 0 8px;">${step.title}</h3>
+      <p style="color:var(--muted);line-height:1.6;margin:0 0 ${step.infoOnly ? '0' : '16px'};font-size:14.5px;">${step.description}</p>
+      ${step.infoOnly ? '' : `
+        <div class="wioa-gate">
+          <p style="font-weight:600;margin-bottom:10px;font-size:14.5px;">${step.question}</p>
+          <div class="wioa-gate-buttons" style="display:flex;gap:10px;">
+            <button class="wioa-yes-btn" style="padding:8px 16px;border-radius:8px;border:1px solid #1a7a3d;background:#eafaf0;color:#1a7a3d;font-weight:600;cursor:pointer;font-size:13.5px;">Yes, done</button>
+            <button class="wioa-no-btn" style="padding:8px 16px;border-radius:8px;border:1px solid var(--line-paper);background:#fff;color:var(--text);font-weight:600;cursor:pointer;font-size:13.5px;">Not yet</button>
+          </div>
+        </div>`}
+    `;
+    container.appendChild(card);
+
+    if (!step.infoOnly) {
+      const gateButtons = card.querySelector('.wioa-gate-buttons');
+      card.querySelector('.wioa-yes-btn').addEventListener('click', () => {
+        gateButtons.innerHTML = '<p style="color:#1a7a3d;font-weight:700;margin:0;font-size:14px;">&#10003; Great, you\'re all set on this step.</p>';
+      });
+      card.querySelector('.wioa-no-btn').addEventListener('click', () => {
+        gateButtons.innerHTML = `<a href="${step.ctaLink}" style="display:inline-block;padding:9px 18px;background:var(--ink);color:#fff;border-radius:8px;font-weight:700;text-decoration:none;font-size:13.5px;">${step.ctaText} &rarr;</a>`;
+      });
+    }
+  });
+})();
+</script>
+</body>
+</html>
