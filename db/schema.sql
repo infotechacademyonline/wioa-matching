@@ -27,7 +27,16 @@ CREATE TABLE offices (
 -- ─────────────────────────────────────────────
 CREATE TABLE participants (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  zoho_record_id    TEXT UNIQUE,        -- Zoho CRM record ID, for re-sync/upsert
+  zoho_record_id    TEXT UNIQUE,        -- Zoho CRM record ID, if synced from Zoho (optional)
+  workintexas_id    TEXT UNIQUE,        -- WorkInTexas ID, entered via the self-registration landing page
+  first_name        TEXT,
+  last_name         TEXT,
+  phone             TEXT,
+  pathway           TEXT,               -- learning track, e.g. 'Cybersecurity', 'SAP'
+  sap_course        TEXT,               -- specific SAP course, only set when pathway = 'SAP'
+  gender            TEXT,
+  veteran_status    TEXT,
+  ethnicity         TEXT,
   full_name         TEXT NOT NULL,
   email             TEXT NOT NULL,
   phone             TEXT,

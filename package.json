@@ -11,11 +11,11 @@
     "start": "node src/server.js"
   },
   "dependencies": {
-    "docx": "^9.7.1",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "node-fetch": "^2.7.0",
-    "nodemailer": "^9.0.3",
+    "nodemailer": "^6.9.14",
     "pg": "^8.12.0"
   }
 }
