@@ -63,6 +63,21 @@
   .toggle-btn { padding: 6px 14px; border-radius: 7px; font-size: 12.5px; font-weight: 700; cursor: pointer; border: 1px solid var(--line); background: #fff; }
   .toggle-btn.complete { background: #eafaf0; border-color: var(--success); color: var(--success); }
   #close-modal { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: var(--muted); }
+
+  .modal-actions { display: flex; gap: 10px; margin-bottom: 20px; }
+  .btn-secondary, .btn-danger {
+    font-size: 13px; font-weight: 700; padding: 8px 16px; border-radius: 8px; cursor: pointer;
+  }
+  .btn-secondary { background: #fff; border: 1px solid var(--line); color: var(--text); }
+  .btn-danger { background: #fdf0ee; border: 1px solid #f0b8ae; color: #b91c1c; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; margin-bottom: 18px; }
+  .form-grid label { font-size: 12px; font-weight: 700; color: var(--muted); display: block; margin-bottom: 4px; }
+  .form-grid input, .form-grid select {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px;
+    font-size: 13.5px; font-family: inherit;
+  }
+  .form-grid .span-2 { grid-column: span 2; }
+  .form-error { color: #b91c1c; font-size: 13px; margin: 0 0 14px; display: none; }
 </style>
 </head>
 <body>
@@ -176,18 +191,29 @@ document.getElementById('search').addEventListener('input', (e) => {
   ));
 });
 
+let CURRENT_DETAIL = null;
+
 async function openDetail(id) {
   const res = await fetch(`/api/staff/participants/${id}`, {
     headers: { 'x-staff-password': STAFF_PASSWORD },
   });
   const data = await res.json();
-  const p = data.participant;
+  CURRENT_DETAIL = data;
+  renderDetailView(data);
+  document.getElementById('modal-overlay').style.display = 'flex';
+}
 
+function renderDetailView(data) {
+  const p = data.participant;
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <button id="close-modal" onclick="closeModal()">&times;</button>
     <h2 style="font-size:19px; margin-bottom:4px;">${escapeHtml(p.full_name)}</h2>
     <p style="color:var(--muted); font-size:13.5px; margin:0 0 18px;">${escapeHtml(p.email)} &middot; ${escapeHtml(p.phone || 'no phone')}</p>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="edit-btn">Edit info</button>
+      <button class="btn-danger" id="delete-btn">Delete participant</button>
+    </div>
     ${p.office_name ? `
       <div style="background:#f4fbf6; border:1px solid #cdeeda; border-radius:10px; padding:14px 16px; margin-bottom:20px;">
         <p style="font-weight:700; margin:0 0 2px; font-size:14px;">${escapeHtml(p.office_name)}</p>
@@ -196,6 +222,9 @@ async function openDetail(id) {
     ` : '<p style="color:var(--muted); font-size:13.5px;">Not yet matched to an office.</p>'}
     <div id="modal-steps"></div>
   `;
+
+  document.getElementById('edit-btn').addEventListener('click', () => renderEditForm(data));
+  document.getElementById('delete-btn').addEventListener('click', () => deleteParticipant(p.id, p.full_name));
 
   const stepsEl = document.getElementById('modal-steps');
   data.checklist.forEach((step) => {
@@ -208,17 +237,86 @@ async function openDetail(id) {
     `;
     row.querySelector('.toggle-btn').addEventListener('click', async () => {
       const action = done ? 'reset' : 'complete';
-      await fetch(`/api/staff/participants/${id}/${step.step_key}/${action}`, {
+      await fetch(`/api/staff/participants/${p.id}/${step.step_key}/${action}`, {
         method: 'POST',
         headers: { 'x-staff-password': STAFF_PASSWORD },
       });
-      openDetail(id);
+      openDetail(p.id);
       loadParticipants();
     });
     stepsEl.appendChild(row);
   });
+}
 
-  document.getElementById('modal-overlay').style.display = 'flex';
+function renderEditForm(data) {
+  const p = data.participant;
+  const field = (name, label, value, span2) => `
+    <div${span2 ? ' class="span-2"' : ''}>
+      <label>${label}</label>
+      <input name="${name}" value="${escapeHtml(value || '')}">
+    </div>
+  `;
+
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <button id="close-modal" onclick="closeModal()">&times;</button>
+    <h2 style="font-size:19px; margin-bottom:18px;">Edit participant</h2>
+    <p class="form-error" id="edit-error"></p>
+    <form id="edit-form">
+      <div class="form-grid">
+        ${field('first_name', 'First name', p.first_name)}
+        ${field('last_name', 'Last name', p.last_name)}
+        ${field('email', 'Email', p.email, true)}
+        ${field('phone', 'Phone', p.phone)}
+        ${field('workintexas_id', 'WorkInTexas ID', p.workintexas_id)}
+        ${field('address', 'Address', p.address, true)}
+        ${field('city', 'City', p.city)}
+        ${field('state', 'State', p.state)}
+        ${field('zip', 'ZIP', p.zip)}
+        ${field('pathway', 'Pathway', p.pathway)}
+        ${field('sap_course', 'SAP course', p.sap_course)}
+        ${field('gender', 'Gender', p.gender)}
+        ${field('veteran_status', 'Veteran status', p.veteran_status)}
+        ${field('ethnicity', 'Ethnicity', p.ethnicity)}
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn-primary">Save changes</button>
+        <button type="button" class="btn-secondary" id="cancel-edit">Cancel</button>
+      </div>
+    </form>
+  `;
+
+  document.getElementById('cancel-edit').addEventListener('click', () => renderDetailView(data));
+  document.getElementById('edit-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const payload = Object.fromEntries(formData.entries());
+
+    const res = await fetch(`/api/staff/participants/${p.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-staff-password': STAFF_PASSWORD },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (!res.ok) {
+      const errorEl = document.getElementById('edit-error');
+      errorEl.textContent = result.error || 'Something went wrong.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    await openDetail(p.id);
+    loadParticipants();
+  });
+}
+
+async function deleteParticipant(id, name) {
+  if (!confirm(`Delete ${name}? This permanently removes their record and checklist progress.`)) return;
+  await fetch(`/api/staff/participants/${id}`, {
+    method: 'DELETE',
+    headers: { 'x-staff-password': STAFF_PASSWORD },
+  });
+  closeModal();
+  loadParticipants();
 }
 
 function closeModal() {

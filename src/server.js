@@ -303,6 +303,51 @@ app.post('/api/staff/participants/:id/:stepKey/reset', requireStaffAuth, async (
   res.json({ ok: true });
 });
 
+// PUT /api/staff/participants/:id -> staff edits a participant's info
+app.put('/api/staff/participants/:id', requireStaffAuth, async (req, res) => {
+  const { id } = req.params;
+  const {
+    first_name, last_name, email, phone, address, city, state, zip,
+    workintexas_id, pathway, sap_course, gender, veteran_status, ethnicity,
+  } = req.body || {};
+
+  if (!first_name || !last_name || !email || !address) {
+    return res.status(400).json({ error: 'First name, last name, email, and address are required.' });
+  }
+
+  const full_name = `${first_name} ${last_name}`.trim();
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE participants SET
+         first_name = $1, last_name = $2, full_name = $3, email = $4, phone = $5,
+         address = $6, city = $7, state = $8, zip = $9, workintexas_id = $10,
+         pathway = $11, sap_course = $12, gender = $13, veteran_status = $14, ethnicity = $15,
+         updated_at = now()
+       WHERE id = $16
+       RETURNING id`,
+      [first_name, last_name, full_name, email, phone, address, city, state, zip,
+       workintexas_id, pathway, sap_course, gender, veteran_status, ethnicity, id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'This email or WorkInTexas ID is already registered to another participant.' });
+    }
+    res.status(500).json({ error: 'Something went wrong.' });
+  }
+});
+
+// DELETE /api/staff/participants/:id -> staff deletes a participant record
+app.delete('/api/staff/participants/:id', requireStaffAuth, async (req, res) => {
+  const { id } = req.params;
+  const { rowCount } = await pool.query(`DELETE FROM participants WHERE id = $1`, [id]);
+  if (rowCount === 0) return res.status(404).json({ error: 'Not found' });
+  res.json({ ok: true });
+});
+
 // ── HTML pages ────────────────────────────────────────────────────────
 app.get('/wioa', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'wioa.html'));
