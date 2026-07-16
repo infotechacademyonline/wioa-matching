@@ -134,17 +134,21 @@ app.post('/api/register', async (req, res) => {
     const checklistLink = `${process.env.APP_BASE_URL}/checklist/${participant.portal_token}`;
     const emailPayload = { fullName: full_name, office: nearest, checklistLink };
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM,
-      to: email,
-      subject: 'Your WIOA program office assignment',
-      text: buildAssignmentEmailText(emailPayload),
-      html: buildAssignmentEmailHtml(emailPayload),
-    });
-    await pool.query(
-      `UPDATE assignments SET notified_at = now() WHERE participant_id = $1`,
-      [participant.id]
-    );
+    try {
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM,
+        to: email,
+        subject: 'Your WIOA program office assignment',
+        text: buildAssignmentEmailText(emailPayload),
+        html: buildAssignmentEmailHtml(emailPayload),
+      });
+      await pool.query(
+        `UPDATE assignments SET notified_at = now() WHERE participant_id = $1`,
+        [participant.id]
+      );
+    } catch (emailErr) {
+      console.error('Assignment email failed to send:', emailErr);
+    }
 
     res.json({
       ok: true,
