@@ -5,14 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WIOA Registration — Infotech Academy</title>
 <meta name="description" content="Register your WorkInTexas details to be matched with your nearest Workforce Solutions office.">
-</head>
-<body style="margin:0;">
-<!--
-WIOA office-matching registration form — /getpaid/wioa
-Same design system as the /getpaid guide page (navy/gold/violet, Inter Tight
-+ Inter). Submits to your hosted Node API's /register endpoint.
--->
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@700;800;900&display=swap" rel="stylesheet">
@@ -39,7 +31,7 @@ Same design system as the /getpaid guide page (navy/gold/violet, Inter Tight
   #wioa-form-page * { box-sizing: border-box; }
   #wioa-form-page h1 { font-family: 'Inter Tight', sans-serif; letter-spacing: -0.02em; }
   #wioa-form-page .card {
-    max-width: 620px; margin: 0 auto; background: #fff; border: 1px solid var(--line);
+    max-width: 680px; margin: 0 auto; background: #fff; border: 1px solid var(--line);
     border-radius: 18px; padding: 44px 44px 40px; box-shadow: 0 20px 50px rgba(10,15,31,0.06);
   }
   #wioa-form-page .field { display: block; margin-bottom: 18px; }
@@ -56,13 +48,20 @@ Same design system as the /getpaid guide page (navy/gold/violet, Inter Tight
   }
   #wioa-form-page .row { display: flex; gap: 14px; }
   #wioa-form-page .row .field { flex: 1; }
+  #wioa-form-page .section-title { font-size: 18px; font-weight: 800; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); color: var(--ink); }
   #wioa-form-page .submit-btn {
     width: 100%; padding: 15px; background: var(--ink); color: #fff; font-weight: 700; font-size: 16px;
-    border: none; border-radius: 10px; cursor: pointer; margin-top: 6px; transition: background .15s ease;
+    border: none; border-radius: 10px; cursor: pointer; margin-top: 16px; transition: background .15s ease;
   }
   #wioa-form-page .submit-btn:hover { background: var(--ink-2); }
   #wioa-form-page .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  
+  @media (max-width: 600px) {
+    #wioa-form-page .row { flex-direction: column; gap: 0; }
+  }
 </style>
+</head>
+<body style="margin:0;">
 
 <div id="wioa-form-page">
   <div class="card" id="wioa-form-panel">
@@ -74,71 +73,235 @@ Same design system as the /getpaid guide page (navy/gold/violet, Inter Tight
       Workforce Solutions office, plus set you up with a checklist to track your next steps.
     </p>
 
-    <form id="wioa-form">
+    <!-- Changed enctype to multipart/form-data for DD214 file upload -->
+    <form id="wioa-form" enctype="multipart/form-data">
+      
+      <div class="section-title" style="margin-top:0;">Personal Information</div>
       <div class="row">
         <label class="field">
-          <span class="field-label">First Name</span>
+          <span class="field-label">Today's Date *</span>
+          <input type="date" name="todays_date" required>
+        </label>
+        <label class="field">
+          <span class="field-label">Date of Birth *</span>
+          <input type="date" name="date_of_birth" required>
+        </label>
+      </div>
+
+      <div class="row">
+        <label class="field">
+          <span class="field-label">First Name *</span>
           <input type="text" name="first_name" required>
         </label>
         <label class="field">
-          <span class="field-label">Last Name</span>
+          <span class="field-label">Last Name *</span>
           <input type="text" name="last_name" required>
         </label>
       </div>
 
       <div class="row">
         <label class="field">
-          <span class="field-label">Email Address</span>
-          <input type="email" name="email" required>
+          <span class="field-label">Social Security Number *</span>
+          <input type="text" name="ssn" required placeholder="VALID SSN">
         </label>
         <label class="field">
-          <span class="field-label">Phone Number</span>
-          <input type="tel" name="phone" required placeholder="(555) 555-5555">
+          <span class="field-label">WorkInTexas ID *</span>
+          <input type="text" name="workintexas_id" required>
+        </label>
+      </div>
+
+      <div class="row">
+        <label class="field">
+          <span class="field-label">Email Address *</span>
+          <input type="email" name="email" required placeholder="example@example.com">
+        </label>
+        <label class="field">
+          <span class="field-label">Phone Number *</span>
+          <input type="tel" name="phone" required placeholder="(000) 000-0000">
+        </label>
+      </div>
+
+      <div class="section-title">Demographics & Status</div>
+      
+      <div class="row">
+        <label class="field">
+          <span class="field-label">Gender *</span>
+          <select name="gender" required>
+            <option value="">- Select -</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>A gender that is not singularly 'Female' or 'Male'</option>
+            <option>Transgender Male to Female</option>
+            <option>Transgender Female to Male</option>
+            <option>Refused/ Don't Know</option>
+            <option>Other</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Disability *</span>
+          <select name="disability" required>
+            <option value="">- Select -</option>
+            <option>Yes</option>
+            <option>No</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="row">
+        <label class="field">
+          <span class="field-label">Are you a veteran? *</span>
+          <select name="veteran_status" id="veteran-select" required>
+            <option value="">- Select -</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </label>
+        <label class="field" id="dd214-has-label" style="display:none;">
+          <span class="field-label">VETERANS ONLY: Do you have a DD214 form?</span>
+          <select name="has_dd214" id="has-dd214-select">
+            <option value="">- Select -</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="field" id="dd214-file-label" style="display:none; background: #f4fbf6; border: 1px dashed var(--success); padding: 15px; border-radius: 8px;">
+        <span class="field-label" style="color:var(--success);">VETERANS ONLY: Please upload form DD214</span>
+        <input type="file" name="dd214_file" accept=".pdf,.jpg,.jpeg,.png" style="border:none; padding:0; background:transparent;">
+      </label>
+
+      <div class="row">
+        <label class="field">
+          <span class="field-label">Education *</span>
+          <select name="education_level" required>
+            <option value="">- Select -</option>
+            <option>9th</option>
+            <option>10th</option>
+            <option>11th</option>
+            <option>12th</option>
+            <option>High School</option>
+            <option>GED</option>
+            <option>12th+ (post Secondary)</option>
+            <option>Some College</option>
+            <option>Associate Degree</option>
+            <option>Bachelor's Degree</option>
+            <option>Master's Degree</option>
+            <option>Minor (doesn't go to school)</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Income *</span>
+          <select name="income_level" required>
+            <option value="">- Select -</option>
+            <option>$0-$20,999</option>
+            <option>$21,000-$27,999</option>
+            <option>$28,000-$32,999</option>
+            <option>$33,000-$38,999</option>
+            <option>$39,000-$45,999</option>
+            <option>$46,000-$49,999</option>
+            <option>$50,000-$55,999</option>
+            <option>$56,000 or more</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="row">
+        <label class="field">
+          <span class="field-label">Race *</span>
+          <select name="race" required>
+            <option value="">- Select -</option>
+            <option>American Indian/ Alaskan Native/ or indigenous</option>
+            <option>Asian/ Asian American</option>
+            <option>Black/ African American/ or African</option>
+            <option>Native Hawaiian/ or Pacific Islander</option>
+            <option>White</option>
+            <option>White/ African American</option>
+            <option>White/ American Indian</option>
+            <option>White/ Asian</option>
+            <option>White/ Pacific Islander</option>
+            <option>African American/ Asian</option>
+            <option>African American/ American Indian</option>
+            <option>African American/ Pacific Islander</option>
+            <option>Asian/ American Indian</option>
+            <option>Asian/ Pacific Islander</option>
+            <option>American Indian/ Pacific Islander</option>
+            <option>Multiple</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Ethnicity *</span>
+          <select name="ethnicity" required>
+            <option value="">- Select -</option>
+            <option>Non-Hispanic/Non-Latino</option>
+            <option>Hispanic/Latino</option>
+            <option>Ethnicity Unknown</option>
+          </select>
         </label>
       </div>
 
       <label class="field">
-        <span class="field-label">WorkInTexas ID</span>
-        <input type="text" name="workintexas_id" required>
+        <span class="field-label">Current living situation *</span>
+        <select name="living_situation" required>
+          <option value="">- Select -</option>
+          <option>Own</option>
+          <option>Rent</option>
+          <option>Living w/ others</option>
+          <option>Transitional/ Temporary Housing</option>
+          <option>Homeless</option>
+          <option>Other</option>
+        </select>
       </label>
 
+      <div class="section-title">Location & Course Details</div>
+
       <label class="field">
-        <span class="field-label">Street Address</span>
-        <input type="text" name="address" required placeholder="123 Main St">
+        <span class="field-label">Street Address *</span>
+        <input type="text" name="address" required placeholder="Street Address">
+      </label>
+      <label class="field">
+        <span class="field-label">Street Address Line 2</span>
+        <input type="text" name="address_line_2">
       </label>
 
       <div class="row">
         <label class="field" style="flex:2;">
-          <span class="field-label">City</span>
+          <span class="field-label">City *</span>
           <input type="text" name="city" required>
         </label>
         <label class="field">
-          <span class="field-label">State</span>
+          <span class="field-label">State *</span>
           <input type="text" name="state" required value="TX" maxlength="2">
         </label>
         <label class="field">
-          <span class="field-label">ZIP</span>
+          <span class="field-label">ZIP *</span>
           <input type="text" name="zip" required>
         </label>
       </div>
 
-      <label class="field">
-        <span class="field-label">Select Learning Track</span>
-        <select name="pathway" id="pathway-select" required>
-          <option value="">- Select -</option>
-          <option>Cloud Computing</option>
-          <option>Software Development</option>
-          <option>Network Security</option>
-          <option>Artificial Intelligence</option>
-          <option>Cybersecurity</option>
-          <option>Data Analytics</option>
-          <option>Device Configuration & Management</option>
-          <option>Networking</option>
-          <option>Databases</option>
-          <option>Data Science</option>
-          <option value="SAP">SAP</option>
-        </select>
-      </label>
+      <div class="row">
+        <label class="field" style="flex: 2;">
+          <span class="field-label">Select Learning Track / Course Desired *</span>
+          <select name="pathway" id="pathway-select" required>
+            <option value="">- Select -</option>
+            <option>Cloud Computing</option>
+            <option>Software Development</option>
+            <option>Network Security</option>
+            <option>Artificial Intelligence</option>
+            <option>Cybersecurity</option>
+            <option>Data Analytics</option>
+            <option>Device Configuration & Management</option>
+            <option>Networking</option>
+            <option>Databases</option>
+            <option>Data Science</option>
+            <option value="SAP">SAP</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Desired Start Date *</span>
+          <input type="date" name="desired_start_date" required>
+        </label>
+      </div>
 
       <label class="field" id="sap-course-label" style="display:none;">
         <span class="field-label">Select Specific SAP Course</span>
@@ -156,47 +319,48 @@ Same design system as the /getpaid guide page (navy/gold/violet, Inter Tight
         </select>
       </label>
 
-      <div class="row">
-        <label class="field">
-          <span class="field-label">Gender</span>
-          <select name="gender" required>
-            <option value="">- Select -</option>
-            <option>Male</option>
-            <option>Female</option>
-          </select>
-        </label>
-        <label class="field">
-          <span class="field-label">Veteran Status</span>
-          <select name="veteran_status" required>
-            <option value="">- Select -</option>
-            <option>Yes, I am a veteran</option>
-            <option>No, I am not a veteran</option>
-            <option>Prefer not to say</option>
-          </select>
-        </label>
-      </div>
+      <div class="section-title">Referral Information</div>
 
-      <label class="field" style="margin-bottom:26px;">
-        <span class="field-label">Ethnicity / Race</span>
-        <select name="ethnicity" required>
+      <label class="field">
+        <span class="field-label">TWC/WIOA Referral *</span>
+        <select name="twc_wioa_referral" id="wioa-referral-select" required>
           <option value="">- Select -</option>
-          <option>African American / Black</option>
-          <option>Asian / Pacific Islander</option>
-          <option>Hispanic / Latino</option>
-          <option>Native American / Alaskan Native</option>
-          <option>White / Caucasian</option>
-          <option>Multiracial</option>
-          <option>Other</option>
-          <option>Prefer Not to Say</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
         </select>
       </label>
+
+      <!-- Conditional Caseworker fields -->
+      <div id="caseworker-fields" style="display:none; background:#f8f9fa; border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom: 18px;">
+        <span style="display:block; font-weight:700; font-size:14px; margin-bottom:14px; color:var(--ink);">Case Worker's Details</span>
+        <div class="row">
+          <label class="field">
+            <span class="field-label">First Name</span>
+            <input type="text" name="case_worker_first_name">
+          </label>
+          <label class="field">
+            <span class="field-label">Last Name</span>
+            <input type="text" name="case_worker_last_name">
+          </label>
+        </div>
+        <div class="row">
+          <label class="field">
+            <span class="field-label">Email</span>
+            <input type="email" name="case_worker_email" placeholder="example@example.com">
+          </label>
+          <label class="field">
+            <span class="field-label">Phone Number</span>
+            <input type="tel" name="case_worker_phone" placeholder="(000) 000-0000">
+          </label>
+        </div>
+      </div>
 
       <button type="submit" id="wioa-submit-btn" class="submit-btn">Submit Registration</button>
       <p id="wioa-error" style="display:none;color:var(--error);margin-top:14px;font-size:13.5px;"></p>
     </form>
   </div>
 
-  <!-- Success panel -->
+  <!-- Success panel (Unchanged) -->
   <div class="card" id="wioa-success-panel" style="display:none;text-align:center;">
     <div style="width:60px;height:60px;background:#eafaf0;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;color:var(--success);">&#10003;</div>
     <h2 style="font-size:22px;font-weight:800;margin-bottom:12px;font-family:'Inter Tight';">Registration Received</h2>
@@ -211,7 +375,6 @@ Same design system as the /getpaid guide page (navy/gold/violet, Inter Tight
 
 <script>
 (function () {
-  // Point this at your real, permanently-hosted API before going live.
   const API_URL = '/api/register';
 
   const form = document.getElementById('wioa-form');
@@ -223,10 +386,37 @@ Same design system as the /getpaid guide page (navy/gold/violet, Inter Tight
   const officeBox = document.getElementById('wioa-office-box');
   const officeDetails = document.getElementById('wioa-office-details');
 
+  // Conditionals for dynamic fields
   const pathwaySelect = document.getElementById('pathway-select');
   const sapLabel = document.getElementById('sap-course-label');
   pathwaySelect.addEventListener('change', () => {
     sapLabel.style.display = pathwaySelect.value === 'SAP' ? 'block' : 'none';
+  });
+
+  const veteranSelect = document.getElementById('veteran-select');
+  const dd214HasLabel = document.getElementById('dd214-has-label');
+  const hasDd214Select = document.getElementById('has-dd214-select');
+  const dd214FileLabel = document.getElementById('dd214-file-label');
+
+  veteranSelect.addEventListener('change', () => {
+    if (veteranSelect.value === 'Yes') {
+      dd214HasLabel.style.display = 'block';
+    } else {
+      dd214HasLabel.style.display = 'none';
+      dd214FileLabel.style.display = 'none';
+      hasDd214Select.value = '';
+    }
+  });
+
+  hasDd214Select.addEventListener('change', () => {
+    dd214FileLabel.style.display = hasDd214Select.value === 'Yes' ? 'block' : 'none';
+  });
+
+  const wioaReferralSelect = document.getElementById('wioa-referral-select');
+  const caseworkerFields = document.getElementById('caseworker-fields');
+  
+  wioaReferralSelect.addEventListener('change', () => {
+    caseworkerFields.style.display = wioaReferralSelect.value === 'Yes' ? 'block' : 'none';
   });
 
   form.addEventListener('submit', async function (e) {
@@ -235,14 +425,17 @@ Same design system as the /getpaid guide page (navy/gold/violet, Inter Tight
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
 
-    const payload = Object.fromEntries(new FormData(form).entries());
+    // Using FormData to support file uploads (DD214 Form)
+    const formData = new FormData(form);
 
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        // Notice: Content-Type header is removed so the browser can automatically set 
+        // the correct multipart/form-data boundary for the file.
+        body: formData,
       });
+      
       const data = await res.json();
 
       if (!res.ok || !data.ok) {
