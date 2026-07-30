@@ -12,8 +12,12 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const nodemailer = require('nodemailer');
 const { Pool } = require('pg');
+const multer = require('multer');
 const { seedChecklistForParticipant } = require('./checklistDefaults');
 const { buildAssignmentEmailHtml, buildAssignmentEmailText } = require('./emailTemplate');
+
+// Configure multer to save uploaded files (like DD214) to an 'uploads' directory
+const upload = multer({ dest: 'uploads/' });
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const app = express();
@@ -53,7 +57,7 @@ async function geocodeOneAddress(address, city, state, zip) {
 
 // ── Public self-registration ─────────────────────────────────────────
 // POST /api/register
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', upload.single('dd214_file'), async (req, res) => {
   const {
     todays_date, first_name, last_name, date_of_birth, ssn, email, phone, 
     workintexas_id, gender, disability, veteran_status,
@@ -61,6 +65,9 @@ app.post('/api/register', async (req, res) => {
     address, address_line_2, city, state, zip, pathway, desired_start_date, sap_course,
     twc_wioa_referral, case_worker_first_name, case_worker_last_name, case_worker_email, case_worker_phone
   } = req.body || {};
+
+  // Capture the file path if a DD214 file was uploaded
+  const dd214_file_path = req.file ? req.file.path : null;
 
   if (!first_name || !last_name || !email || !address || !workintexas_id) {
     return res.status(400).json({
