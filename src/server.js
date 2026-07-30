@@ -60,7 +60,7 @@ async function geocodeOneAddress(address, city, state, zip) {
 app.post('/api/register', upload.single('dd214_file'), async (req, res) => {
   const {
     todays_date, first_name, last_name, date_of_birth, ssn, email, phone, 
-    workintexas_id, gender, disability, veteran_status, has_dd214, 
+    workintexas_id, gender, disability, veteran_status,
     education_level, race, ethnicity, income_level, living_situation,
     address, address_line_2, city, state, zip, pathway, desired_start_date, sap_course,
     twc_wioa_referral, case_worker_first_name, case_worker_last_name, case_worker_email, case_worker_phone
@@ -82,14 +82,14 @@ app.post('/api/register', upload.single('dd214_file'), async (req, res) => {
     const upsert = await pool.query(
       `INSERT INTO participants (
          todays_date, first_name, last_name, full_name, date_of_birth, ssn, email, phone, workintexas_id,
-         gender, disability, veteran_status, has_dd214, dd214_file_path, education_level, race, ethnicity,
+         gender, disability, veteran_status, education_level, race, ethnicity,
          income_level, living_situation, address, address_line_2, city, state, zip, pathway, 
          desired_start_date, sap_course, twc_wioa_referral, case_worker_first_name, case_worker_last_name, 
          case_worker_email, case_worker_phone
        )
        VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 
-         $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32
+         $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
        )
        ON CONFLICT (workintexas_id)
        DO UPDATE SET 
@@ -98,7 +98,7 @@ app.post('/api/register', upload.single('dd214_file'), async (req, res) => {
          state = EXCLUDED.state, zip = EXCLUDED.zip, pathway = EXCLUDED.pathway, sap_course = EXCLUDED.sap_course, 
          gender = EXCLUDED.gender, veteran_status = EXCLUDED.veteran_status, ethnicity = EXCLUDED.ethnicity,
          todays_date = EXCLUDED.todays_date, date_of_birth = EXCLUDED.date_of_birth, ssn = EXCLUDED.ssn, 
-         disability = EXCLUDED.disability, has_dd214 = EXCLUDED.has_dd214, dd214_file_path = EXCLUDED.dd214_file_path, 
+         disability = EXCLUDED.disability, 
          education_level = EXCLUDED.education_level, race = EXCLUDED.race, income_level = EXCLUDED.income_level, 
          living_situation = EXCLUDED.living_situation, address_line_2 = EXCLUDED.address_line_2, 
          desired_start_date = EXCLUDED.desired_start_date, twc_wioa_referral = EXCLUDED.twc_wioa_referral, 
@@ -108,7 +108,7 @@ app.post('/api/register', upload.single('dd214_file'), async (req, res) => {
        RETURNING id, portal_token`,
       [
         todays_date, first_name, last_name, full_name, date_of_birth, ssn, email, phone, workintexas_id,
-        gender, disability, veteran_status, has_dd214, dd214_file_path, education_level, race, ethnicity,
+        gender, disability, veteran_status, education_level, race, ethnicity,
         income_level, living_situation, address, address_line_2, city, state, zip, pathway, 
         desired_start_date, sap_course, twc_wioa_referral, case_worker_first_name, case_worker_last_name, 
         case_worker_email, case_worker_phone
@@ -341,7 +341,7 @@ app.put('/api/staff/participants/:id', requireStaffAuth, async (req, res) => {
   const { id } = req.params;
   const {
     todays_date, first_name, last_name, date_of_birth, ssn, email, phone, 
-    workintexas_id, gender, disability, veteran_status, has_dd214, 
+    workintexas_id, gender, disability, veteran_status, 
     education_level, race, ethnicity, income_level, living_situation,
     address, address_line_2, city, state, zip, pathway, desired_start_date, sap_course,
     twc_wioa_referral, case_worker_first_name, case_worker_last_name, case_worker_email, case_worker_phone
@@ -359,8 +359,8 @@ app.put('/api/staff/participants/:id', requireStaffAuth, async (req, res) => {
          first_name = $1, last_name = $2, full_name = $3, email = $4, phone = $5,
          address = $6, city = $7, state = $8, zip = $9, workintexas_id = $10,
          pathway = $11, sap_course = $12, gender = $13, veteran_status = $14, ethnicity = $15,
-         todays_date = $16, date_of_birth = $17, ssn = $18, disability = $19, has_dd214 = $20,
-         education_level = $21, race = $22, income_level = $23, living_situation = $24, 
+         todays_date = $16, date_of_birth = $17, ssn = $18, disability = $19,
+         education_level = $20, race = $21, income_level = $22, living_situation = $23, 
          address_line_2 = $25, desired_start_date = $26, twc_wioa_referral = $27, 
          case_worker_first_name = $28, case_worker_last_name = $29, case_worker_email = $30, 
          case_worker_phone = $31, updated_at = now()
@@ -369,7 +369,7 @@ app.put('/api/staff/participants/:id', requireStaffAuth, async (req, res) => {
       [
         first_name, last_name, full_name, email, phone, address, city, state, zip,
         workintexas_id, pathway, sap_course, gender, veteran_status, ethnicity,
-        todays_date, date_of_birth, ssn, disability, has_dd214, education_level, 
+        todays_date, date_of_birth, ssn, disability, education_level, 
         race, income_level, living_situation, address_line_2, desired_start_date, 
         twc_wioa_referral, case_worker_first_name, case_worker_last_name, 
         case_worker_email, case_worker_phone, id
@@ -409,5 +409,13 @@ app.get('/staff', (req, res) => {
 // explicit routes above so /checklist/:token and /staff aren't shadowed.
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const server = app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
+
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Stop the process using that port or set a different PORT environment variable.`);
+    process.exit(1);
+  }
+  throw error;
+});

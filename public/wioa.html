@@ -73,8 +73,7 @@
       Workforce Solutions office, plus set you up with a checklist to track your next steps.
     </p>
 
-    <!-- Changed enctype to multipart/form-data for DD214 file upload -->
-    <form id="wioa-form" enctype="multipart/form-data">
+    <form id="wioa-form">
       
       <div class="section-title" style="margin-top:0;">Personal Information</div>
       <div class="row">
@@ -146,30 +145,6 @@
           </select>
         </label>
       </div>
-
-      <div class="row">
-        <label class="field">
-          <span class="field-label">Are you a veteran? *</span>
-          <select name="veteran_status" id="veteran-select" required>
-            <option value="">- Select -</option>
-            <option value="Yes">Yes</option>
-            <option value="No">No</option>
-          </select>
-        </label>
-        <label class="field" id="dd214-has-label" style="display:none;">
-          <span class="field-label">VETERANS ONLY: Do you have a DD214 form?</span>
-          <select name="has_dd214" id="has-dd214-select">
-            <option value="">- Select -</option>
-            <option value="Yes">Yes</option>
-            <option value="No">No</option>
-          </select>
-        </label>
-      </div>
-
-      <label class="field" id="dd214-file-label" style="display:none; background: #f4fbf6; border: 1px dashed var(--success); padding: 15px; border-radius: 8px;">
-        <span class="field-label" style="color:var(--success);">VETERANS ONLY: Please upload form DD214</span>
-        <input type="file" name="dd214_file" accept=".pdf,.jpg,.jpeg,.png" style="border:none; padding:0; background:transparent;">
-      </label>
 
       <div class="row">
         <label class="field">
@@ -393,25 +368,6 @@
     sapLabel.style.display = pathwaySelect.value === 'SAP' ? 'block' : 'none';
   });
 
-  const veteranSelect = document.getElementById('veteran-select');
-  const dd214HasLabel = document.getElementById('dd214-has-label');
-  const hasDd214Select = document.getElementById('has-dd214-select');
-  const dd214FileLabel = document.getElementById('dd214-file-label');
-
-  veteranSelect.addEventListener('change', () => {
-    if (veteranSelect.value === 'Yes') {
-      dd214HasLabel.style.display = 'block';
-    } else {
-      dd214HasLabel.style.display = 'none';
-      dd214FileLabel.style.display = 'none';
-      hasDd214Select.value = '';
-    }
-  });
-
-  hasDd214Select.addEventListener('change', () => {
-    dd214FileLabel.style.display = hasDd214Select.value === 'Yes' ? 'block' : 'none';
-  });
-
   const wioaReferralSelect = document.getElementById('wioa-referral-select');
   const caseworkerFields = document.getElementById('caseworker-fields');
   
@@ -425,15 +381,13 @@
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
 
-    // Using FormData to support file uploads (DD214 Form)
-    const formData = new FormData(form);
+    const payload = JSON.stringify(Object.fromEntries(new FormData(form)));
 
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
-        // Notice: Content-Type header is removed so the browser can automatically set 
-        // the correct multipart/form-data boundary for the file.
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
       });
       
       const data = await res.json();
