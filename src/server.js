@@ -7,30 +7,31 @@
 
 require('dotenv').config();
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch');
-const nodemailer = require('nodemailer');
 const { Pool } = require('pg');
-const multer = require('multer');
 const { seedChecklistForParticipant } = require('./checklistDefaults');
-const { buildAssignmentEmailHtml, buildAssignmentEmailText } = require('./emailTemplate');
-
-// Configure multer to save uploaded files (like DD214) to an 'uploads' directory
-const upload = multer({ dest: 'uploads/' });
+const { sendParticipantAssignment, sendStaffRegistrationNotice } = require('./mailer');
+const { WHATSAPP_GROUP_URL } = require('./links');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const app = express();
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // Added to support form data parsing
-app.use(cors({ origin: (process.env.CORS_ORIGIN || '').split(',').filter(Boolean) }));
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+// Neon (and most hosted Postgres) drops idle connections. pg reports that as
+// an 'error' event on the pool; with no listener, Node treats it as an
+// uncaught exception and the whole server exits. Log it — the pool replaces
+// the dead client on the next query.
+pool.on('error', (err) => {
+  console.error('Idle Postgres client error:', err.message);
 });
+
+// Express 4 doesn't catch rejected promises from async handlers — the request
+// hangs and, on Node 15+, the unhandled rejection kills the process. Wrapping
+// each async route forwards any error to the error middleware at the bottom.
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+const app = express();
+app.use(express.json());
+app.use(cors({ origin: (process.env.CORS_ORIGIN || '').split(',').filter(Boolean) }));
 
 const EARTH_RADIUS_MILES = 3958.8;
 function toRad(deg) { return (deg * Math.PI) / 180; }
@@ -41,6 +42,11 @@ function haversineMiles(lat1, lon1, lat2, lon2) {
   return EARTH_RADIUS_MILES * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+const GEOCODE_TIMEOUT_MS = 8000;
+
+// Returns { latitude, longitude }, or null if the address couldn't be matched
+// OR the Census API is slow/down/returning garbage. Callers treat null as
+// "needs manual follow-up", so a geocoder outage never fails a registration.
 async function geocodeOneAddress(address, city, state, zip) {
   const oneLine = [address, city, state, zip].filter(Boolean).join(', ');
   const url = new URL('https://geocoding.geo.census.gov/geocoder/locations/onelineaddress');
@@ -48,80 +54,105 @@ async function geocodeOneAddress(address, city, state, zip) {
   url.searchParams.set('benchmark', 'Public_AR_Current');
   url.searchParams.set('format', 'json');
 
-  const res = await fetch(url);
-  const data = await res.json();
-  const match = data?.result?.addressMatches?.[0];
-  if (!match) return null;
-  return { latitude: match.coordinates.y, longitude: match.coordinates.x };
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(GEOCODE_TIMEOUT_MS) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const match = data?.result?.addressMatches?.[0];
+    if (!match) return null;
+    return { latitude: match.coordinates.y, longitude: match.coordinates.x };
+  } catch (err) {
+    console.error(`Geocoding failed for "${oneLine}":`, err.message);
+    return null;
+  }
 }
 
 // ── Public self-registration ─────────────────────────────────────────
+const DUPLICATE_REGISTRATION_ERROR =
+  'This WorkInTexas ID is already registered. If you registered before, check your email for your ' +
+  'checklist link. To update your details or report a problem, contact learn@infotechacademy.online.';
+
 // POST /api/register
-app.post('/api/register', upload.single('dd214_file'), async (req, res) => {
+app.post('/api/register', asyncHandler(async (req, res) => {
   const {
-    todays_date, first_name, last_name, date_of_birth, ssn, email, phone, 
-    workintexas_id, gender, disability, veteran_status,
-    education_level, race, ethnicity, income_level, living_situation,
-    address, address_line_2, city, state, zip, pathway, desired_start_date, sap_course,
-    twc_wioa_referral, case_worker_first_name, case_worker_last_name, case_worker_email, case_worker_phone
+    first_name, last_name, email, phone, address, city, state, zip,
+    workintexas_id, ssn, pathway, sap_course, gender, veteran_status, ethnicity,
   } = req.body || {};
 
-  // Capture the file path if a DD214 file was uploaded
-  const dd214_file_path = req.file ? req.file.path : null;
+  // Trim so " 12345 " can't slip past the unique constraint as a second
+  // record for the same person.
+  const workintexasId = String(workintexas_id ?? '').trim();
 
-  if (!first_name || !last_name || !email || !address || !workintexas_id) {
+  // Server-side required-field check. The form enforces these too, but
+  // don't trust the browser — a curl or a broken JS build would bypass it.
+  const missing = [];
+  if (!first_name)     missing.push('First name');
+  if (!last_name)      missing.push('Last name');
+  if (!email)          missing.push('Email');
+  if (!address)        missing.push('Address');
+  if (!workintexasId)  missing.push('WorkInTexas ID');
+  if (!ssn)            missing.push('Social Security Number');
+  if (missing.length) {
     return res.status(400).json({
       ok: false,
-      error: 'First name, last name, email, address, and WorkInTexas ID are all required.',
+      error: `Missing required field${missing.length === 1 ? '' : 's'}: ${missing.join(', ')}.`,
     });
   }
 
+  // Normalise SSN to "123-45-6789" form regardless of what the user typed.
+  // Store consistently so staff-side searches and dedupe work later.
+  const digits = String(ssn).replace(/\D/g, '');
+  if (digits.length !== 9) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Social Security Number must be exactly 9 digits.',
+    });
+  }
+  const ssn_clean = `${digits.slice(0,3)}-${digits.slice(3,5)}-${digits.slice(5)}`;
+
   const full_name = `${first_name} ${last_name}`.trim();
 
+  // Shared participant summary for staff notifications (no SSN — see mailer.js).
+  const participantSummary = {
+    full_name, email, phone, workintexas_id: workintexasId,
+    address, city, state, zip,
+    pathway, sap_course, gender, veteran_status, ethnicity,
+  };
+
   try {
-    const upsert = await pool.query(
+    // Insert only — never update an existing participant from this public
+    // form. A WorkInTexas ID isn't a secret, so updating on conflict let
+    // anyone who knew someone's ID overwrite their name, email, and SSN, and
+    // receive their private checklist link in the response.
+    const inserted = await pool.query(
       `INSERT INTO participants (
-         todays_date, first_name, last_name, full_name, date_of_birth, ssn, email, phone, workintexas_id,
-         gender, disability, veteran_status, education_level, race, ethnicity,
-         income_level, living_situation, address, address_line_2, city, state, zip, pathway, 
-         desired_start_date, sap_course, twc_wioa_referral, case_worker_first_name, case_worker_last_name, 
-         case_worker_email, case_worker_phone
+         first_name, last_name, full_name, email, phone, address, city, state, zip,
+         workintexas_id, ssn, pathway, sap_course, gender, veteran_status, ethnicity
        )
-       VALUES (
-         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 
-         $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
-       )
-       ON CONFLICT (workintexas_id)
-       DO UPDATE SET 
-         first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name, full_name = EXCLUDED.full_name, 
-         email = EXCLUDED.email, phone = EXCLUDED.phone, address = EXCLUDED.address, city = EXCLUDED.city,
-         state = EXCLUDED.state, zip = EXCLUDED.zip, pathway = EXCLUDED.pathway, sap_course = EXCLUDED.sap_course, 
-         gender = EXCLUDED.gender, veteran_status = EXCLUDED.veteran_status, ethnicity = EXCLUDED.ethnicity,
-         todays_date = EXCLUDED.todays_date, date_of_birth = EXCLUDED.date_of_birth, ssn = EXCLUDED.ssn, 
-         disability = EXCLUDED.disability, 
-         education_level = EXCLUDED.education_level, race = EXCLUDED.race, income_level = EXCLUDED.income_level, 
-         living_situation = EXCLUDED.living_situation, address_line_2 = EXCLUDED.address_line_2, 
-         desired_start_date = EXCLUDED.desired_start_date, twc_wioa_referral = EXCLUDED.twc_wioa_referral, 
-         case_worker_first_name = EXCLUDED.case_worker_first_name, case_worker_last_name = EXCLUDED.case_worker_last_name, 
-         case_worker_email = EXCLUDED.case_worker_email, case_worker_phone = EXCLUDED.case_worker_phone,
-         updated_at = now()
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+       ON CONFLICT (workintexas_id) DO NOTHING
        RETURNING id, portal_token`,
-      [
-        todays_date, first_name, last_name, full_name, date_of_birth, ssn, email, phone, workintexas_id,
-        gender, disability, veteran_status, education_level, race, ethnicity,
-        income_level, living_situation, address, address_line_2, city, state, zip, pathway, 
-        desired_start_date, sap_course, twc_wioa_referral, case_worker_first_name, case_worker_last_name, 
-        case_worker_email, case_worker_phone
-      ]
+      [first_name, last_name, full_name, email, phone, address, city, state, zip,
+       workintexasId, ssn_clean, pathway, sap_course, gender, veteran_status, ethnicity]
     );
-    
-    const participant = upsert.rows[0];
+
+    if (inserted.rows.length === 0) {
+      // Already registered. Could be the same person resubmitting (lost
+      // email, corrected address), a typo'd ID, or someone else's ID — so
+      // don't reveal or change anything; let staff sort it out.
+      sendStaffRegistrationNotice({ participant: participantSummary, status: 'duplicate' });
+      return res.status(409).json({ ok: false, error: DUPLICATE_REGISTRATION_ERROR });
+    }
+    const participant = inserted.rows[0];
+
     const coords = await geocodeOneAddress(address, city, state, zip);
 
     if (!coords) {
+      sendStaffRegistrationNotice({ participant: participantSummary, status: 'no_geocode' });
       return res.json({
         ok: true,
         matched: false,
+        whatsappGroupLink: WHATSAPP_GROUP_URL,
         message: 'Registration received. We could not automatically confirm your address — our team will follow up with your office assignment shortly.',
       });
     }
@@ -137,9 +168,11 @@ app.post('/api/register', upload.single('dd214_file'), async (req, res) => {
     );
 
     if (offices.length === 0) {
+      sendStaffRegistrationNotice({ participant: participantSummary, status: 'no_offices' });
       return res.json({
         ok: true,
         matched: false,
+        whatsappGroupLink: WHATSAPP_GROUP_URL,
         message: 'Registration received. Office assignment is pending — our team will follow up shortly.',
       });
     }
@@ -161,27 +194,48 @@ app.post('/api/register', upload.single('dd214_file'), async (req, res) => {
     await seedChecklistForParticipant(pool, participant.id);
 
     const checklistLink = `${process.env.APP_BASE_URL}/checklist/${participant.portal_token}`;
-    const emailPayload = { fullName: full_name, office: nearest, checklistLink };
 
+    // The participant is already saved and matched at this point, so an SMTP
+    // failure must not turn into an error response — they'd think registration
+    // failed and resubmit. Leave notified_at NULL instead: `npm run notify`
+    // picks up exactly those rows, and staff are told to follow up.
+    let emailSent = false;
     try {
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM,
+      await sendParticipantAssignment({
         to: email,
-        subject: 'Your WIOA program office assignment',
-        text: buildAssignmentEmailText(emailPayload),
-        html: buildAssignmentEmailHtml(emailPayload),
+        fullName: full_name,
+        office: nearest,
+        checklistLink,
+        // For SAP, name the specific course ("SAP Finance and Controlling").
+        pathway: sap_course || pathway,
       });
+      emailSent = true;
+    } catch (emailErr) {
+      console.error(`Assignment email to ${email} failed:`, emailErr.message);
+    }
+
+    if (emailSent) {
+      // The email is already out; a failure here would only cause a duplicate
+      // send on the next `npm run notify`, so log rather than fail the request.
       await pool.query(
         `UPDATE assignments SET notified_at = now() WHERE participant_id = $1`,
         [participant.id]
-      );
-    } catch (emailErr) {
-      console.error('Assignment email failed to send:', emailErr);
+      ).catch((err) => console.error('Failed to set notified_at:', err.message));
     }
+
+    sendStaffRegistrationNotice({
+      participant: participantSummary,
+      status: 'matched',
+      office: nearest,
+      distanceMiles: nearestDistance.toFixed(2),
+      participantEmailFailed: !emailSent,
+    });
 
     res.json({
       ok: true,
       matched: true,
+      emailSent,
+      whatsappGroupLink: WHATSAPP_GROUP_URL,
       office: {
         name: nearest.name,
         county: nearest.county,
@@ -194,15 +248,15 @@ app.post('/api/register', upload.single('dd214_file'), async (req, res) => {
   } catch (err) {
     console.error(err);
     if (err.code === '23505') {
-      return res.status(409).json({ ok: false, error: 'This email or WorkInTexas ID is already registered.' });
+      return res.status(409).json({ ok: false, error: DUPLICATE_REGISTRATION_ERROR });
     }
     res.status(500).json({ ok: false, error: 'Something went wrong. Please try again or contact us directly.' });
   }
-});
+}));
 
 // ── Participant checklist API ────────────────────────────────────────
 // GET /api/checklist/:token -> participant info + office + checklist status
-app.get('/api/checklist/:token', async (req, res) => {
+app.get('/api/checklist/:token', asyncHandler(async (req, res) => {
   const { token } = req.params;
 
   const participant = await pool.query(
@@ -234,10 +288,10 @@ app.get('/api/checklist/:token', async (req, res) => {
     office: office.rows[0] || null,
     checklist: checklist.rows,
   });
-});
+}));
 
 // POST /api/checklist/:token/:stepKey/complete -> participant marks a step done
-app.post('/api/checklist/:token/:stepKey/complete', async (req, res) => {
+app.post('/api/checklist/:token/:stepKey/complete', asyncHandler(async (req, res) => {
   const { token, stepKey } = req.params;
 
   const participant = await pool.query(
@@ -254,19 +308,32 @@ app.post('/api/checklist/:token/:stepKey/complete', async (req, res) => {
   );
 
   res.json({ ok: true });
-});
+}));
 
 // ── Staff API ─────────────────────────────────────────────────────────
+// Hashing both sides first gives equal-length buffers, which
+// timingSafeEqual requires, and avoids leaking the password's length.
+function sha256(value) {
+  return crypto.createHash('sha256').update(String(value)).digest();
+}
+
 function requireStaffAuth(req, res, next) {
+  const expected = process.env.STAFF_DASHBOARD_PASSWORD;
+  // Fail closed: if the password isn't configured, lock the staff API
+  // instead of letting a missing header (undefined === undefined) through.
+  if (!expected) {
+    console.error('STAFF_DASHBOARD_PASSWORD is not set — staff API is disabled.');
+    return res.status(503).json({ error: 'Staff access is not configured' });
+  }
   const provided = req.headers['x-staff-password'];
-  if (provided !== process.env.STAFF_DASHBOARD_PASSWORD) {
+  if (!provided || !crypto.timingSafeEqual(sha256(provided), sha256(expected))) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   next();
 }
 
 // GET /api/staff/participants -> every participant, office, and progress
-app.get('/api/staff/participants', requireStaffAuth, async (req, res) => {
+app.get('/api/staff/participants', requireStaffAuth, asyncHandler(async (req, res) => {
   const { rows } = await pool.query(`
     SELECT
       p.id, p.full_name, p.email, p.phone, p.workintexas_id, p.pathway,
@@ -283,10 +350,10 @@ app.get('/api/staff/participants', requireStaffAuth, async (req, res) => {
     ORDER BY p.created_at DESC
   `);
   res.json(rows);
-});
+}));
 
 // GET /api/staff/participants/:id -> full detail + checklist for one participant
-app.get('/api/staff/participants/:id', requireStaffAuth, async (req, res) => {
+app.get('/api/staff/participants/:id', requireStaffAuth, asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const participant = await pool.query(
@@ -300,6 +367,15 @@ app.get('/api/staff/participants/:id', requireStaffAuth, async (req, res) => {
   );
   if (participant.rows.length === 0) return res.status(404).json({ error: 'Not found' });
 
+  const p = participant.rows[0];
+
+  // Mask SSN before it leaves the server. The full value stays in the DB
+  // for eligibility use, but the dashboard only ever sees last-4.
+  if (p.ssn) {
+    const digits = String(p.ssn).replace(/\D/g, '');
+    p.ssn = digits.length === 9 ? `•••-••-${digits.slice(-4)}` : '•••-••-••••';
+  }
+
   const checklist = await pool.query(
     `SELECT t.step_key, t.step_label, t.step_order, c.status, c.completed_at, c.completed_by
      FROM checklist_items c
@@ -309,11 +385,11 @@ app.get('/api/staff/participants/:id', requireStaffAuth, async (req, res) => {
     [id]
   );
 
-  res.json({ participant: participant.rows[0], checklist: checklist.rows });
-});
+  res.json({ participant: p, checklist: checklist.rows });
+}));
 
 // POST /api/staff/participants/:id/:stepKey/complete -> staff marks a step done
-app.post('/api/staff/participants/:id/:stepKey/complete', requireStaffAuth, async (req, res) => {
+app.post('/api/staff/participants/:id/:stepKey/complete', requireStaffAuth, asyncHandler(async (req, res) => {
   const { id, stepKey } = req.params;
   await pool.query(
     `UPDATE checklist_items
@@ -322,10 +398,10 @@ app.post('/api/staff/participants/:id/:stepKey/complete', requireStaffAuth, asyn
     [id, stepKey]
   );
   res.json({ ok: true });
-});
+}));
 
 // POST /api/staff/participants/:id/:stepKey/reset -> staff un-checks a step
-app.post('/api/staff/participants/:id/:stepKey/reset', requireStaffAuth, async (req, res) => {
+app.post('/api/staff/participants/:id/:stepKey/reset', requireStaffAuth, asyncHandler(async (req, res) => {
   const { id, stepKey } = req.params;
   await pool.query(
     `UPDATE checklist_items
@@ -334,65 +410,7 @@ app.post('/api/staff/participants/:id/:stepKey/reset', requireStaffAuth, async (
     [id, stepKey]
   );
   res.json({ ok: true });
-});
-
-// PUT /api/staff/participants/:id -> staff edits a participant's info
-app.put('/api/staff/participants/:id', requireStaffAuth, async (req, res) => {
-  const { id } = req.params;
-  const {
-    todays_date, first_name, last_name, date_of_birth, ssn, email, phone, 
-    workintexas_id, gender, disability, veteran_status, 
-    education_level, race, ethnicity, income_level, living_situation,
-    address, address_line_2, city, state, zip, pathway, desired_start_date, sap_course,
-    twc_wioa_referral, case_worker_first_name, case_worker_last_name, case_worker_email, case_worker_phone
-  } = req.body || {};
-
-  if (!first_name || !last_name || !email || !address) {
-    return res.status(400).json({ error: 'First name, last name, email, and address are required.' });
-  }
-
-  const full_name = `${first_name} ${last_name}`.trim();
-
-  try {
-    const { rows } = await pool.query(
-      `UPDATE participants SET
-         first_name = $1, last_name = $2, full_name = $3, email = $4, phone = $5,
-         address = $6, city = $7, state = $8, zip = $9, workintexas_id = $10,
-         pathway = $11, sap_course = $12, gender = $13, veteran_status = $14, ethnicity = $15,
-         todays_date = $16, date_of_birth = $17, ssn = $18, disability = $19,
-         education_level = $20, race = $21, income_level = $22, living_situation = $23, 
-         address_line_2 = $25, desired_start_date = $26, twc_wioa_referral = $27, 
-         case_worker_first_name = $28, case_worker_last_name = $29, case_worker_email = $30, 
-         case_worker_phone = $31, updated_at = now()
-       WHERE id = $32
-       RETURNING id`,
-      [
-        first_name, last_name, full_name, email, phone, address, city, state, zip,
-        workintexas_id, pathway, sap_course, gender, veteran_status, ethnicity,
-        todays_date, date_of_birth, ssn, disability, education_level, 
-        race, income_level, living_situation, address_line_2, desired_start_date, 
-        twc_wioa_referral, case_worker_first_name, case_worker_last_name, 
-        case_worker_email, case_worker_phone, id
-      ]
-    );
-    if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    res.json({ ok: true });
-  } catch (err) {
-    console.error(err);
-    if (err.code === '23505') {
-      return res.status(409).json({ error: 'This email or WorkInTexas ID is already registered to another participant.' });
-    }
-    res.status(500).json({ error: 'Something went wrong.' });
-  }
-});
-
-// DELETE /api/staff/participants/:id -> staff deletes a participant record
-app.delete('/api/staff/participants/:id', requireStaffAuth, async (req, res) => {
-  const { id } = req.params;
-  const { rowCount } = await pool.query(`DELETE FROM participants WHERE id = $1`, [id]);
-  if (rowCount === 0) return res.status(404).json({ error: 'Not found' });
-  res.json({ ok: true });
-});
+}));
 
 // ── HTML pages ────────────────────────────────────────────────────────
 app.get('/wioa', (req, res) => {
@@ -409,13 +427,20 @@ app.get('/staff', (req, res) => {
 // explicit routes above so /checklist/:token and /staff aren't shadowed.
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-const server = app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
-
-server.on('error', (error) => {
-  if (error.code === 'EADDRINUSE') {
-    console.error(`Port ${PORT} is already in use. Stop the process using that port or set a different PORT environment variable.`);
-    process.exit(1);
+// ── Error handler ─────────────────────────────────────────────────────
+// Catches anything forwarded by asyncHandler (DB down, bad query, etc.) so
+// one failed request returns JSON instead of hanging or crashing the server.
+// Must be registered last and keep all four arguments — that's how Express
+// recognises error middleware.
+app.use((err, req, res, next) => {
+  // 22P02 = invalid_text_representation, e.g. a non-UUID in /participants/:id
+  if (err.code === '22P02') {
+    return res.status(404).json({ error: 'Not found' });
   }
-  throw error;
+  console.error(`${req.method} ${req.originalUrl} failed:`, err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ ok: false, error: 'Something went wrong. Please try again.' });
 });
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Listening on port ${PORT}`));

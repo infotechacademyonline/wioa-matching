@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Matches WIOA participants to their nearest office, notifies them by email, and tracks a shared enrollment checklist.",
   "main": "src/server.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "migrate": "psql \"$DATABASE_URL\" -f db/schema.sql",
     "geocode": "node src/geocode.js",
