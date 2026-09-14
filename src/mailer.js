@@ -4,8 +4,9 @@
 // so we never end up with two competing nodemailer configs.
 //
 // Public API:
-//   sendParticipantAssignment({ to, fullName, office, checklistLink })
-//     → sends the "here's your assigned office" email to the participant.
+//   sendParticipantAssignment({ to, fullName, office, checklistLink, pathway? })
+//     → sends the welcome email (assigned office, WhatsApp group, checklist
+//       link) to the participant.
 //   sendStaffRegistrationNotice({ participant, status, office?, distanceMiles? })
 //     → notifies staff of every new registration. Status is one of:
 //         'matched' | 'no_geocode' | 'no_offices' | 'duplicate'
@@ -28,12 +29,14 @@ const transporter = nodemailer.createTransport({
 // The participant-facing "your office assignment" email.
 // Returns the nodemailer info object so callers can log messageId or
 // update `notified_at` on success.
-async function sendParticipantAssignment({ to, fullName, office, checklistLink }) {
-  const payload = { fullName, office, checklistLink };
+// `pathway` is optional (the batch script doesn't have it); when given, the
+// welcome message mentions the participant's chosen track.
+async function sendParticipantAssignment({ to, fullName, office, checklistLink, pathway }) {
+  const payload = { fullName, office, checklistLink, pathway };
   return transporter.sendMail({
     from: process.env.SMTP_FROM,
     to,
-    subject: 'Your WIOA program office assignment',
+    subject: 'Welcome to Infotech Academy — your office assignment & next steps',
     text: buildAssignmentEmailText(payload),
     html: buildAssignmentEmailHtml(payload),
   });

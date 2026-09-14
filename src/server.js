@@ -13,6 +13,7 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const { seedChecklistForParticipant } = require('./checklistDefaults');
 const { sendParticipantAssignment, sendStaffRegistrationNotice } = require('./mailer');
+const { WHATSAPP_GROUP_URL } = require('./links');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 // Neon (and most hosted Postgres) drops idle connections. pg reports that as
@@ -151,6 +152,7 @@ app.post('/api/register', asyncHandler(async (req, res) => {
       return res.json({
         ok: true,
         matched: false,
+        whatsappGroupLink: WHATSAPP_GROUP_URL,
         message: 'Registration received. We could not automatically confirm your address — our team will follow up with your office assignment shortly.',
       });
     }
@@ -170,6 +172,7 @@ app.post('/api/register', asyncHandler(async (req, res) => {
       return res.json({
         ok: true,
         matched: false,
+        whatsappGroupLink: WHATSAPP_GROUP_URL,
         message: 'Registration received. Office assignment is pending — our team will follow up shortly.',
       });
     }
@@ -203,6 +206,8 @@ app.post('/api/register', asyncHandler(async (req, res) => {
         fullName: full_name,
         office: nearest,
         checklistLink,
+        // For SAP, name the specific course ("SAP Finance and Controlling").
+        pathway: sap_course || pathway,
       });
       emailSent = true;
     } catch (emailErr) {
@@ -230,6 +235,7 @@ app.post('/api/register', asyncHandler(async (req, res) => {
       ok: true,
       matched: true,
       emailSent,
+      whatsappGroupLink: WHATSAPP_GROUP_URL,
       office: {
         name: nearest.name,
         county: nearest.county,
