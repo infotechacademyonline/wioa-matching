@@ -7,14 +7,27 @@
 
 require('dotenv').config();
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch');
 const { Pool } = require('pg');
 const { seedChecklistForParticipant } = require('./checklistDefaults');
 const { sendParticipantAssignment, sendStaffRegistrationNotice } = require('./mailer');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Neon (and most hosted Postgres) drops idle connections. pg reports that as
+// an 'error' event on the pool; with no listener, Node treats it as an
+// uncaught exception and the whole server exits. Log it — the pool replaces
+// the dead client on the next query.
+pool.on('error', (err) => {
+  console.error('Idle Postgres client error:', err.message);
+});
+
+// Express 4 doesn't catch rejected promises from async handlers — the request
+// hangs and, on Node 15+, the unhandled rejection kills the process. Wrapping
+// each async route forwards any error to the error middleware at the bottom.
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
 const app = express();
 app.use(express.json());
 app.use(cors({ origin: (process.env.CORS_ORIGIN || '').split(',').filter(Boolean) }));
@@ -28,6 +41,11 @@ function haversineMiles(lat1, lon1, lat2, lon2) {
   return EARTH_RADIUS_MILES * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+const GEOCODE_TIMEOUT_MS = 8000;
+
+// Returns { latitude, longitude }, or null if the address couldn't be matched
+// OR the Census API is slow/down/returning garbage. Callers treat null as
+// "needs manual follow-up", so a geocoder outage never fails a registration.
 async function geocodeOneAddress(address, city, state, zip) {
   const oneLine = [address, city, state, zip].filter(Boolean).join(', ');
   const url = new URL('https://geocoding.geo.census.gov/geocoder/locations/onelineaddress');
@@ -35,16 +53,22 @@ async function geocodeOneAddress(address, city, state, zip) {
   url.searchParams.set('benchmark', 'Public_AR_Current');
   url.searchParams.set('format', 'json');
 
-  const res = await fetch(url);
-  const data = await res.json();
-  const match = data?.result?.addressMatches?.[0];
-  if (!match) return null;
-  return { latitude: match.coordinates.y, longitude: match.coordinates.x };
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(GEOCODE_TIMEOUT_MS) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const match = data?.result?.addressMatches?.[0];
+    if (!match) return null;
+    return { latitude: match.coordinates.y, longitude: match.coordinates.x };
+  } catch (err) {
+    console.error(`Geocoding failed for "${oneLine}":`, err.message);
+    return null;
+  }
 }
 
 // ── Public self-registration ─────────────────────────────────────────
 // POST /api/register
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', asyncHandler(async (req, res) => {
   const {
     first_name, last_name, email, phone, address, city, state, zip,
     workintexas_id, ssn, pathway, sap_course, gender, veteran_status, ethnicity,
@@ -192,11 +216,11 @@ app.post('/api/register', async (req, res) => {
     }
     res.status(500).json({ ok: false, error: 'Something went wrong. Please try again or contact us directly.' });
   }
-});
+}));
 
 // ── Participant checklist API ────────────────────────────────────────
 // GET /api/checklist/:token -> participant info + office + checklist status
-app.get('/api/checklist/:token', async (req, res) => {
+app.get('/api/checklist/:token', asyncHandler(async (req, res) => {
   const { token } = req.params;
 
   const participant = await pool.query(
@@ -228,10 +252,10 @@ app.get('/api/checklist/:token', async (req, res) => {
     office: office.rows[0] || null,
     checklist: checklist.rows,
   });
-});
+}));
 
 // POST /api/checklist/:token/:stepKey/complete -> participant marks a step done
-app.post('/api/checklist/:token/:stepKey/complete', async (req, res) => {
+app.post('/api/checklist/:token/:stepKey/complete', asyncHandler(async (req, res) => {
   const { token, stepKey } = req.params;
 
   const participant = await pool.query(
@@ -248,19 +272,32 @@ app.post('/api/checklist/:token/:stepKey/complete', async (req, res) => {
   );
 
   res.json({ ok: true });
-});
+}));
 
 // ── Staff API ─────────────────────────────────────────────────────────
+// Hashing both sides first gives equal-length buffers, which
+// timingSafeEqual requires, and avoids leaking the password's length.
+function sha256(value) {
+  return crypto.createHash('sha256').update(String(value)).digest();
+}
+
 function requireStaffAuth(req, res, next) {
+  const expected = process.env.STAFF_DASHBOARD_PASSWORD;
+  // Fail closed: if the password isn't configured, lock the staff API
+  // instead of letting a missing header (undefined === undefined) through.
+  if (!expected) {
+    console.error('STAFF_DASHBOARD_PASSWORD is not set — staff API is disabled.');
+    return res.status(503).json({ error: 'Staff access is not configured' });
+  }
   const provided = req.headers['x-staff-password'];
-  if (provided !== process.env.STAFF_DASHBOARD_PASSWORD) {
+  if (!provided || !crypto.timingSafeEqual(sha256(provided), sha256(expected))) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   next();
 }
 
 // GET /api/staff/participants -> every participant, office, and progress
-app.get('/api/staff/participants', requireStaffAuth, async (req, res) => {
+app.get('/api/staff/participants', requireStaffAuth, asyncHandler(async (req, res) => {
   const { rows } = await pool.query(`
     SELECT
       p.id, p.full_name, p.email, p.phone, p.workintexas_id, p.pathway,
@@ -277,10 +314,10 @@ app.get('/api/staff/participants', requireStaffAuth, async (req, res) => {
     ORDER BY p.created_at DESC
   `);
   res.json(rows);
-});
+}));
 
 // GET /api/staff/participants/:id -> full detail + checklist for one participant
-app.get('/api/staff/participants/:id', requireStaffAuth, async (req, res) => {
+app.get('/api/staff/participants/:id', requireStaffAuth, asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const participant = await pool.query(
@@ -313,10 +350,10 @@ app.get('/api/staff/participants/:id', requireStaffAuth, async (req, res) => {
   );
 
   res.json({ participant: p, checklist: checklist.rows });
-});
+}));
 
 // POST /api/staff/participants/:id/:stepKey/complete -> staff marks a step done
-app.post('/api/staff/participants/:id/:stepKey/complete', requireStaffAuth, async (req, res) => {
+app.post('/api/staff/participants/:id/:stepKey/complete', requireStaffAuth, asyncHandler(async (req, res) => {
   const { id, stepKey } = req.params;
   await pool.query(
     `UPDATE checklist_items
@@ -325,10 +362,10 @@ app.post('/api/staff/participants/:id/:stepKey/complete', requireStaffAuth, asyn
     [id, stepKey]
   );
   res.json({ ok: true });
-});
+}));
 
 // POST /api/staff/participants/:id/:stepKey/reset -> staff un-checks a step
-app.post('/api/staff/participants/:id/:stepKey/reset', requireStaffAuth, async (req, res) => {
+app.post('/api/staff/participants/:id/:stepKey/reset', requireStaffAuth, asyncHandler(async (req, res) => {
   const { id, stepKey } = req.params;
   await pool.query(
     `UPDATE checklist_items
@@ -337,7 +374,7 @@ app.post('/api/staff/participants/:id/:stepKey/reset', requireStaffAuth, async (
     [id, stepKey]
   );
   res.json({ ok: true });
-});
+}));
 
 // ── HTML pages ────────────────────────────────────────────────────────
 app.get('/wioa', (req, res) => {
@@ -353,6 +390,21 @@ app.get('/staff', (req, res) => {
 // Static files (index.html, wioa.html assets, etc.) — must come after the
 // explicit routes above so /checklist/:token and /staff aren't shadowed.
 app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// ── Error handler ─────────────────────────────────────────────────────
+// Catches anything forwarded by asyncHandler (DB down, bad query, etc.) so
+// one failed request returns JSON instead of hanging or crashing the server.
+// Must be registered last and keep all four arguments — that's how Express
+// recognises error middleware.
+app.use((err, req, res, next) => {
+  // 22P02 = invalid_text_representation, e.g. a non-UUID in /participants/:id
+  if (err.code === '22P02') {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  console.error(`${req.method} ${req.originalUrl} failed:`, err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ ok: false, error: 'Something went wrong. Please try again.' });
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
