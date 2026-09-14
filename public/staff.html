@@ -113,15 +113,44 @@ function unlock() {
   loadParticipants();
 }
 
-async function loadParticipants() {
-  const res = await fetch('/api/staff/participants', {
-    headers: { 'x-staff-password': STAFF_PASSWORD },
-  });
-  if (res.status === 401) {
-    document.getElementById('login-error').style.display = 'block';
+// Staff API calls with a readable error for each failure mode. Returns the
+// parsed JSON, or null after showing the error.
+async function staffFetch(url, options = {}) {
+  let res;
+  try {
+    res = await fetch(url, {
+      ...options,
+      headers: { ...(options.headers || {}), 'x-staff-password': STAFF_PASSWORD },
+    });
+  } catch {
+    showError('Could not reach the server. Check your connection and try again.');
+    return null;
+  }
+  if (res.ok) return res.json();
+
+  if (res.status === 401) showError('Incorrect password.');
+  else if (res.status === 503) showError('Staff access is not configured on the server. Ask your administrator to set STAFF_DASHBOARD_PASSWORD.');
+  else showError(`Something went wrong (error ${res.status}). Please try again.`);
+  return null;
+}
+
+// Before login, errors go under the password box; once the dashboard is
+// open the login screen is hidden, so fall back to an alert.
+function showError(message) {
+  if (document.getElementById('dashboard').style.display === 'block') {
+    alert(message);
     return;
   }
-  ALL_ROWS = await res.json();
+  const el = document.getElementById('login-error');
+  el.textContent = message;
+  el.style.display = 'block';
+}
+
+async function loadParticipants() {
+  const rows = await staffFetch('/api/staff/participants');
+  if (!rows) return;
+  document.getElementById('login-error').style.display = 'none';
+  ALL_ROWS = rows;
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
   renderStats();
@@ -177,10 +206,8 @@ document.getElementById('search').addEventListener('input', (e) => {
 });
 
 async function openDetail(id) {
-  const res = await fetch(`/api/staff/participants/${id}`, {
-    headers: { 'x-staff-password': STAFF_PASSWORD },
-  });
-  const data = await res.json();
+  const data = await staffFetch(`/api/staff/participants/${id}`);
+  if (!data) return;
   const p = data.participant;
 
   // Build the full-field labelled table. Every field the participant
@@ -250,10 +277,8 @@ async function openDetail(id) {
     `;
     row.querySelector('.toggle-btn').addEventListener('click', async () => {
       const action = done ? 'reset' : 'complete';
-      await fetch(`/api/staff/participants/${id}/${step.step_key}/${action}`, {
-        method: 'POST',
-        headers: { 'x-staff-password': STAFF_PASSWORD },
-      });
+      const result = await staffFetch(`/api/staff/participants/${id}/${step.step_key}/${action}`, { method: 'POST' });
+      if (!result) return;
       openDetail(id);
       loadParticipants();
     });

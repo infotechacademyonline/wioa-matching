@@ -227,7 +227,7 @@ Same design system as the /getpaid guide page (navy/gold/violet, Inter Tight
       <p style="font-weight:700;color:var(--success);margin:0 0 8px;font-size:14px;">Your assigned office:</p>
       <p id="wioa-office-details" style="color:#1a4a30;margin:0;line-height:1.6;font-size:14px;"></p>
     </div>
-    <p style="color:var(--muted);font-size:13px;">Check your email for a link to track your enrollment checklist.</p>
+    <p id="wioa-email-note" style="color:var(--muted);font-size:13px;">Check your email for a link to track your enrollment checklist.</p>
   </div>
 </div>
 
@@ -244,6 +244,7 @@ Same design system as the /getpaid guide page (navy/gold/violet, Inter Tight
   const successMessage = document.getElementById('wioa-success-message');
   const officeBox = document.getElementById('wioa-office-box');
   const officeDetails = document.getElementById('wioa-office-details');
+  const emailNote = document.getElementById('wioa-email-note');
 
   const pathwaySelect = document.getElementById('pathway-select');
   const sapLabel = document.getElementById('sap-course-label');
@@ -275,7 +276,22 @@ Same design system as the /getpaid guide page (navy/gold/violet, Inter Tight
       successPanel.style.display = 'block';
 
       if (data.matched && data.office) {
-        successMessage.textContent = 'Thanks — we\'ve matched you to your nearest office and emailed you the details.';
+        if (data.emailSent === false) {
+          // Registration succeeded but the confirmation email didn't go out.
+          // Show the checklist link here so the participant isn't left
+          // waiting for an email that isn't coming.
+          successMessage.textContent = 'Thanks — we\'ve matched you to your nearest office. We couldn\'t send your confirmation email right now, so please save the link below. Our team will follow up.';
+          emailNote.textContent = '';
+          if (data.checklistLink) {
+            const link = document.createElement('a');
+            link.href = data.checklistLink;
+            link.textContent = 'Open my enrollment checklist →';
+            link.style.cssText = 'font-weight:700;color:var(--success);';
+            emailNote.appendChild(link);
+          }
+        } else {
+          successMessage.textContent = 'Thanks — we\'ve matched you to your nearest office and emailed you the details.';
+        }
         officeBox.style.display = 'block';
         officeDetails.innerHTML = `
           <strong>${data.office.name}</strong><br>

@@ -179,27 +179,44 @@ app.post('/api/register', asyncHandler(async (req, res) => {
 
     const checklistLink = `${process.env.APP_BASE_URL}/checklist/${participant.portal_token}`;
 
-    await sendParticipantAssignment({
-      to: email,
-      fullName: full_name,
-      office: nearest,
-      checklistLink,
-    });
-    await pool.query(
-      `UPDATE assignments SET notified_at = now() WHERE participant_id = $1`,
-      [participant.id]
-    );
+    // The participant is already saved and matched at this point, so an SMTP
+    // failure must not turn into an error response — they'd think registration
+    // failed and resubmit. Leave notified_at NULL instead: `npm run notify`
+    // picks up exactly those rows, and staff are told to follow up.
+    let emailSent = false;
+    try {
+      await sendParticipantAssignment({
+        to: email,
+        fullName: full_name,
+        office: nearest,
+        checklistLink,
+      });
+      emailSent = true;
+    } catch (emailErr) {
+      console.error(`Assignment email to ${email} failed:`, emailErr.message);
+    }
+
+    if (emailSent) {
+      // The email is already out; a failure here would only cause a duplicate
+      // send on the next `npm run notify`, so log rather than fail the request.
+      await pool.query(
+        `UPDATE assignments SET notified_at = now() WHERE participant_id = $1`,
+        [participant.id]
+      ).catch((err) => console.error('Failed to set notified_at:', err.message));
+    }
 
     sendStaffRegistrationNotice({
       participant: participantSummary,
       status: 'matched',
       office: nearest,
       distanceMiles: nearestDistance.toFixed(2),
+      participantEmailFailed: !emailSent,
     });
 
     res.json({
       ok: true,
       matched: true,
+      emailSent,
       office: {
         name: nearest.name,
         county: nearest.county,

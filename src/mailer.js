@@ -45,7 +45,7 @@ async function sendParticipantAssignment({ to, fullName, office, checklistLink }
 // Fire-and-forget: the caller does NOT await this in the request path,
 // so a slow SMTP round-trip can't block the participant's response and
 // a Gmail outage can't break registration. Failures log to stderr.
-function sendStaffRegistrationNotice({ participant, status, office, distanceMiles }) {
+function sendStaffRegistrationNotice({ participant, status, office, distanceMiles, participantEmailFailed = false }) {
   const to = process.env.STAFF_NOTIFY_TO || 'learn@infotechacademy.online';
 
   const statusLine =
@@ -54,12 +54,15 @@ function sendStaffRegistrationNotice({ participant, status, office, distanceMile
     status === 'no_offices' ? 'No active offices in the system — needs manual assignment' :
                               'Unknown status';
 
-  const subject = status === 'matched'
+  const subject = status === 'matched' && !participantEmailFailed
     ? `New WIOA registration — ${participant.full_name}`
     : `New WIOA registration NEEDS FOLLOW-UP — ${participant.full_name}`;
 
   const lines = [
     `Status: ${statusLine}`,
+    ...(participantEmailFailed
+      ? [`>>> The office-assignment email to the participant FAILED to send. Run \`npm run notify\` to retry, or contact them directly.`]
+      : []),
     ``,
     `Name:              ${participant.full_name}`,
     `Email:             ${participant.email}`,
