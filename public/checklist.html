@@ -42,6 +42,32 @@
   .step-label.done { color: var(--muted); text-decoration: line-through; }
   .step-meta { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
   #loading, #error { text-align: center; color: var(--muted); padding: 60px 20px; max-width: 500px; margin: 0 auto; }
+
+  /* Mobile — cards' 36px side padding is tight on small phones. Also enlarge
+     the check button so it's a comfortable tap target. */
+  @media (max-width: 640px) {
+    body { padding: 28px 14px 60px; }
+    .card { padding: 24px 20px; border-radius: 14px; }
+    h1 { font-size: 22px !important; }
+    .check-btn { width: 32px; height: 32px; font-size: 16px; }
+    .step-row { padding: 18px 0; gap: 12px; }
+    .step-label { font-size: 14.5px; }
+  }
+
+  /* Dark mode — checklist is a working document users may re-open often,
+     so make it comfortable in either scheme. */
+  @media (prefers-color-scheme: dark) {
+    body { --paper: #14161c; --text: #e8eaef; --muted: #9aa3b2; --line: #2a2f3a; background: var(--paper); color: var(--text); }
+    .card { background: #1c1f28; border-color: var(--line); box-shadow: 0 20px 50px rgba(0,0,0,0.4); }
+    .check-btn { background: #1c1f28; border-color: var(--line); }
+    .check-btn.done { background: var(--success); border-color: var(--success); }
+    .step-label.done { color: #6b7385; }
+    .office-card { background: #0f2117 !important; border-color: #1f4a30 !important; }
+    .office-card p { color: inherit !important; }
+    .office-card p:first-child { color: #7dcf9d !important; }
+    /* the "Your checklist" eyebrow uses --gold-deep which is fine, but the muted paragraphs need lifting */
+    #content .card p[style*="var(--muted)"] { color: var(--muted) !important; }
+  }
 </style>
 </head>
 <body>

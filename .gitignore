@@ -1,0 +1,9 @@
+node_modules/
+.env
+*.log
+
+# Local backups of the old GitHub version — never push
+*.bak
+
+# User-uploaded files (e.g. DD214s) contain participant PII
+uploads/
