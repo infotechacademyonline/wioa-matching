@@ -8,7 +8,7 @@
 //     → sends the "here's your assigned office" email to the participant.
 //   sendStaffRegistrationNotice({ participant, status, office?, distanceMiles? })
 //     → notifies staff of every new registration. Status is one of:
-//         'matched' | 'no_geocode' | 'no_offices'
+//         'matched' | 'no_geocode' | 'no_offices' | 'duplicate'
 //
 // Notes on SSN:
 //   Staff notification emails must NEVER include SSN. The staff dashboard
@@ -52,11 +52,14 @@ function sendStaffRegistrationNotice({ participant, status, office, distanceMile
     status === 'matched'    ? `Matched to ${office.name} (${distanceMiles} mi away)` :
     status === 'no_geocode' ? 'Address could not be verified — needs manual assignment' :
     status === 'no_offices' ? 'No active offices in the system — needs manual assignment' :
+    status === 'duplicate'  ? 'REJECTED — this WorkInTexas ID is already registered. Nothing was changed.' :
                               'Unknown status';
 
-  const subject = status === 'matched' && !participantEmailFailed
-    ? `New WIOA registration — ${participant.full_name}`
-    : `New WIOA registration NEEDS FOLLOW-UP — ${participant.full_name}`;
+  const subject =
+    status === 'duplicate' ? `Duplicate WIOA registration attempt — WorkInTexas ID ${participant.workintexas_id}` :
+    status === 'matched' && !participantEmailFailed
+      ? `New WIOA registration — ${participant.full_name}`
+      : `New WIOA registration NEEDS FOLLOW-UP — ${participant.full_name}`;
 
   const lines = [
     `Status: ${statusLine}`,
@@ -83,6 +86,14 @@ function sendStaffRegistrationNotice({ participant, status, office, distanceMile
     if (office.phone)   lines.push(`Office phone:      ${office.phone}`);
     if (office.email)   lines.push(`Office email:      ${office.email}`);
     lines.push(`Distance:          ${distanceMiles} miles`);
+  } else if (status === 'duplicate') {
+    lines.push(
+      ``,
+      `>>> The details above are what was SUBMITTED, not what's on file. The existing`,
+      `>>> record was not changed. This may be the same person resubmitting (lost email,`,
+      `>>> corrected address), a mistyped ID, or someone using another person's ID.`,
+      `>>> Compare against the staff dashboard before updating anything.`,
+    );
   } else {
     lines.push(``, `>>> Please follow up with this participant to assign an office manually.`);
   }

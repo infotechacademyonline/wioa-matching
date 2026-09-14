@@ -67,12 +67,20 @@ async function geocodeOneAddress(address, city, state, zip) {
 }
 
 // ── Public self-registration ─────────────────────────────────────────
+const DUPLICATE_REGISTRATION_ERROR =
+  'This WorkInTexas ID is already registered. If you registered before, check your email for your ' +
+  'checklist link. To update your details or report a problem, contact learn@infotechacademy.online.';
+
 // POST /api/register
 app.post('/api/register', asyncHandler(async (req, res) => {
   const {
     first_name, last_name, email, phone, address, city, state, zip,
     workintexas_id, ssn, pathway, sap_course, gender, veteran_status, ethnicity,
   } = req.body || {};
+
+  // Trim so " 12345 " can't slip past the unique constraint as a second
+  // record for the same person.
+  const workintexasId = String(workintexas_id ?? '').trim();
 
   // Server-side required-field check. The form enforces these too, but
   // don't trust the browser — a curl or a broken JS build would bypass it.
@@ -81,7 +89,7 @@ app.post('/api/register', asyncHandler(async (req, res) => {
   if (!last_name)      missing.push('Last name');
   if (!email)          missing.push('Email');
   if (!address)        missing.push('Address');
-  if (!workintexas_id) missing.push('WorkInTexas ID');
+  if (!workintexasId)  missing.push('WorkInTexas ID');
   if (!ssn)            missing.push('Social Security Number');
   if (missing.length) {
     return res.status(400).json({
@@ -103,35 +111,40 @@ app.post('/api/register', asyncHandler(async (req, res) => {
 
   const full_name = `${first_name} ${last_name}`.trim();
 
+  // Shared participant summary for staff notifications (no SSN — see mailer.js).
+  const participantSummary = {
+    full_name, email, phone, workintexas_id: workintexasId,
+    address, city, state, zip,
+    pathway, sap_course, gender, veteran_status, ethnicity,
+  };
+
   try {
-    const upsert = await pool.query(
+    // Insert only — never update an existing participant from this public
+    // form. A WorkInTexas ID isn't a secret, so updating on conflict let
+    // anyone who knew someone's ID overwrite their name, email, and SSN, and
+    // receive their private checklist link in the response.
+    const inserted = await pool.query(
       `INSERT INTO participants (
          first_name, last_name, full_name, email, phone, address, city, state, zip,
          workintexas_id, ssn, pathway, sap_course, gender, veteran_status, ethnicity
        )
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-       ON CONFLICT (workintexas_id)
-       DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name,
-                     full_name = EXCLUDED.full_name, email = EXCLUDED.email,
-                     phone = EXCLUDED.phone, address = EXCLUDED.address, city = EXCLUDED.city,
-                     state = EXCLUDED.state, zip = EXCLUDED.zip, ssn = EXCLUDED.ssn,
-                     pathway = EXCLUDED.pathway, sap_course = EXCLUDED.sap_course,
-                     gender = EXCLUDED.gender, veteran_status = EXCLUDED.veteran_status,
-                     ethnicity = EXCLUDED.ethnicity, updated_at = now()
+       ON CONFLICT (workintexas_id) DO NOTHING
        RETURNING id, portal_token`,
       [first_name, last_name, full_name, email, phone, address, city, state, zip,
-       workintexas_id, ssn_clean, pathway, sap_course, gender, veteran_status, ethnicity]
+       workintexasId, ssn_clean, pathway, sap_course, gender, veteran_status, ethnicity]
     );
-    const participant = upsert.rows[0];
+
+    if (inserted.rows.length === 0) {
+      // Already registered. Could be the same person resubmitting (lost
+      // email, corrected address), a typo'd ID, or someone else's ID — so
+      // don't reveal or change anything; let staff sort it out.
+      sendStaffRegistrationNotice({ participant: participantSummary, status: 'duplicate' });
+      return res.status(409).json({ ok: false, error: DUPLICATE_REGISTRATION_ERROR });
+    }
+    const participant = inserted.rows[0];
 
     const coords = await geocodeOneAddress(address, city, state, zip);
-
-    // Shared participant summary for staff notifications (no SSN — see mailer.js).
-    const participantSummary = {
-      full_name, email, phone, workintexas_id,
-      address, city, state, zip,
-      pathway, sap_course, gender, veteran_status, ethnicity,
-    };
 
     if (!coords) {
       sendStaffRegistrationNotice({ participant: participantSummary, status: 'no_geocode' });
@@ -229,7 +242,7 @@ app.post('/api/register', asyncHandler(async (req, res) => {
   } catch (err) {
     console.error(err);
     if (err.code === '23505') {
-      return res.status(409).json({ ok: false, error: 'This email or WorkInTexas ID is already registered.' });
+      return res.status(409).json({ ok: false, error: DUPLICATE_REGISTRATION_ERROR });
     }
     res.status(500).json({ ok: false, error: 'Something went wrong. Please try again or contact us directly.' });
   }
